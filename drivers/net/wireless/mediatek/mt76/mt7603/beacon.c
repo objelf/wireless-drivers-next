@@ -18,7 +18,7 @@
 #include "mt7603.h"
 
 struct beacon_bc_data {
-	struct mt7603_dev *dev;
+	struct mt76x35_dev *dev;
 	struct sk_buff_head q;
 	struct sk_buff *tail[MT7603_MAX_INTERFACES];
 	int count[MT7603_MAX_INTERFACES];
@@ -28,7 +28,7 @@ static void
 mt7603_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
-	struct mt7603_dev *dev = (struct mt7603_dev *)priv;
+	struct mt76x35_dev *dev = (struct mt76x35_dev *)priv;
 	struct sk_buff *skb = NULL;
 
 	if (!(dev->beacon_mask & BIT(mvif->idx)))
@@ -60,7 +60,7 @@ mt7603_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct beacon_bc_data *data = priv;
-	struct mt7603_dev *dev = data->dev;
+	struct mt76x35_dev *dev = data->dev;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
 
@@ -82,7 +82,7 @@ mt7603_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 
 void mt7603_pre_tbtt_tasklet(unsigned long arg)
 {
-	struct mt7603_dev *dev = (struct mt7603_dev *)arg;
+	struct mt76x35_dev *dev = (struct mt76x35_dev *)arg;
 	struct mt76_queue *q;
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
@@ -155,7 +155,7 @@ out:
 		dev->beacon_check++;
 }
 
-void mt7603_beacon_set_timer(struct mt7603_dev *dev, int idx, int intval)
+void mt7603_beacon_set_timer(struct mt76x35_dev *dev, int idx, int intval)
 {
 	u32 pre_tbtt = MT7603_PRE_TBTT_TIME / 64;
 

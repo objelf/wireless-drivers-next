@@ -35,18 +35,18 @@ mt7603_ac_queue_mask0(u32 mask)
 }
 
 static void
-mt76_stop_tx_ac(struct mt7603_dev *dev, u32 mask)
+mt76_stop_tx_ac(struct mt76x35_dev *dev, u32 mask)
 {
 	mt76_set(dev, MT_WF_ARB_TX_STOP_0, mt7603_ac_queue_mask0(mask));
 }
 
 static void
-mt76_start_tx_ac(struct mt7603_dev *dev, u32 mask)
+mt76_start_tx_ac(struct mt76x35_dev *dev, u32 mask)
 {
 	mt76_set(dev, MT_WF_ARB_TX_START_0, mt7603_ac_queue_mask0(mask));
 }
 
-void mt7603_mac_set_timing(struct mt7603_dev *dev)
+void mt7603_mac_set_timing(struct mt76x35_dev *dev)
 {
 	u32 cck = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 231) |
 		  FIELD_PREP(MT_TIMEOUT_VAL_CCA, 48);
@@ -87,7 +87,7 @@ void mt7603_mac_set_timing(struct mt7603_dev *dev)
 }
 
 static void
-mt7603_wtbl_update(struct mt7603_dev *dev, int idx, u32 mask)
+mt7603_wtbl_update(struct mt76x35_dev *dev, int idx, u32 mask)
 {
 	mt76_rmw(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_WLAN_IDX,
 		 FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, idx) | mask);
@@ -124,7 +124,7 @@ mt7603_wtbl4_addr(int idx)
 	return base + idx * MT_WTBL4_SIZE;
 }
 
-void mt7603_wtbl_init(struct mt7603_dev *dev, int idx, int vif,
+void mt7603_wtbl_init(struct mt76x35_dev *dev, int idx, int vif,
 		      const u8 *mac_addr)
 {
 	const void *_mac = mac_addr;
@@ -168,7 +168,7 @@ void mt7603_wtbl_init(struct mt7603_dev *dev, int idx, int vif,
 }
 
 static void
-mt7603_wtbl_set_skip_tx(struct mt7603_dev *dev, int idx, bool enabled)
+mt7603_wtbl_set_skip_tx(struct mt76x35_dev *dev, int idx, bool enabled)
 {
 	u32 addr = mt7603_wtbl1_addr(idx);
 	u32 val = mt76_rr(dev, addr + 3 * 4);
@@ -179,7 +179,7 @@ mt7603_wtbl_set_skip_tx(struct mt7603_dev *dev, int idx, bool enabled)
 	mt76_wr(dev, addr + 3 * 4, val);
 }
 
-void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
+void mt7603_filter_tx(struct mt76x35_dev *dev, int idx, bool abort)
 {
 	int i, port, queue;
 
@@ -212,7 +212,7 @@ void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
 	mt7603_wtbl_set_skip_tx(dev, idx, false);
 }
 
-void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt76x35_sta *sta,
+void mt7603_wtbl_set_smps(struct mt76x35_dev *dev, struct mt76x35_sta *sta,
 			  bool enabled)
 {
 	u32 addr = mt7603_wtbl1_addr(sta->wcid.idx);
@@ -224,7 +224,7 @@ void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt76x35_sta *sta,
 	sta->smps = enabled;
 }
 
-void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt76x35_sta *sta,
+void mt7603_wtbl_set_ps(struct mt76x35_dev *dev, struct mt76x35_sta *sta,
 			bool enabled)
 {
 	int idx = sta->wcid.idx;
@@ -258,7 +258,7 @@ out:
 	spin_unlock_bh(&dev->ps_lock);
 }
 
-void mt7603_wtbl_clear(struct mt7603_dev *dev, int idx)
+void mt7603_wtbl_clear(struct mt76x35_dev *dev, int idx)
 {
 	int wtbl2_frame_size = MT_PSE_PAGE_SIZE / MT_WTBL2_SIZE;
 	int wtbl2_frame = idx / wtbl2_frame_size;
@@ -316,7 +316,8 @@ void mt7603_wtbl_clear(struct mt7603_dev *dev, int idx)
 	mt7603_wtbl_update(dev, idx, MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 }
 
-void mt7603_wtbl_update_cap(struct mt7603_dev *dev, struct ieee80211_sta *sta)
+void mt7603_wtbl_update_cap(struct mt76x35_dev *dev,
+			    struct ieee80211_sta *sta)
 {
 	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	int idx = msta->wcid.idx;
@@ -349,7 +350,7 @@ void mt7603_wtbl_update_cap(struct mt7603_dev *dev, struct ieee80211_sta *sta)
 	mt76_wr(dev, addr + 9 * 4, val);
 }
 
-void mt7603_mac_rx_ba_reset(struct mt7603_dev *dev, void *addr, u8 tid)
+void mt7603_mac_rx_ba_reset(struct mt76x35_dev *dev, void *addr, u8 tid)
 {
 	mt76_wr(dev, MT_BA_CONTROL_0, get_unaligned_le32(addr));
 	mt76_wr(dev, MT_BA_CONTROL_1,
@@ -358,8 +359,8 @@ void mt7603_mac_rx_ba_reset(struct mt7603_dev *dev, void *addr, u8 tid)
 		 MT_BA_CONTROL_1_RESET));
 }
 
-void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid, int ssn,
-			    int ba_size)
+void mt7603_mac_tx_ba_reset(struct mt76x35_dev *dev, int wcid, int tid,
+			    int ssn, int ba_size)
 {
 	u32 addr = mt7603_wtbl2_addr(wcid);
 	u32 tid_mask = FIELD_PREP(MT_WTBL2_W15_BA_EN_TIDS, BIT(tid)) |
@@ -423,7 +424,8 @@ void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid, int ssn,
 }
 
 static int
-mt7603_get_rate(struct mt7603_dev *dev, struct ieee80211_supported_band *sband,
+mt7603_get_rate(struct mt76x35_dev *dev,
+		struct ieee80211_supported_band *sband,
 		int idx, bool cck)
 {
 	int offset = 0;
@@ -448,7 +450,7 @@ mt7603_get_rate(struct mt7603_dev *dev, struct ieee80211_supported_band *sband,
 }
 
 static struct mt76_wcid *
-mt7603_rx_get_wcid(struct mt7603_dev *dev, u8 idx, bool unicast)
+mt7603_rx_get_wcid(struct mt76x35_dev *dev, u8 idx, bool unicast)
 {
 	struct mt76x35_sta *sta;
 	struct mt76_wcid *wcid;
@@ -495,7 +497,7 @@ mt7603_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id)
 }
 
 int
-mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
+mt7603_mac_fill_rx(struct mt76x35_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct ieee80211_supported_band *sband;
@@ -648,7 +650,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 }
 
 static u16
-mt7603_mac_tx_rate_val(struct mt7603_dev *dev,
+mt7603_mac_tx_rate_val(struct mt76x35_dev *dev,
 		       const struct ieee80211_tx_rate *rate, bool stbc, u8 *bw)
 {
 	u8 phy, nss, rate_idx;
@@ -688,7 +690,7 @@ mt7603_mac_tx_rate_val(struct mt7603_dev *dev,
 	return rateval;
 }
 
-void mt7603_wtbl_set_rates(struct mt7603_dev *dev, struct mt76x35_sta *sta,
+void mt7603_wtbl_set_rates(struct mt76x35_dev *dev, struct mt76x35_sta *sta,
 			   struct ieee80211_tx_rate *probe_rate,
 			   struct ieee80211_tx_rate *rates)
 {
@@ -805,7 +807,7 @@ mt7603_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 	}
 }
 
-int mt7603_wtbl_set_key(struct mt7603_dev *dev, int wcid,
+int mt7603_wtbl_set_key(struct mt76x35_dev *dev, int wcid,
 			struct ieee80211_key_conf *key)
 {
 	enum mt7603_cipher_type cipher;
@@ -834,7 +836,7 @@ int mt7603_wtbl_set_key(struct mt7603_dev *dev, int wcid,
 }
 
 static int
-mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
+mt7603_mac_write_txwi(struct mt76x35_dev *dev, __le32 *txwi,
 		      struct sk_buff *skb, struct mt76_queue *q,
 		      struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 		      int pid, struct ieee80211_key_conf *key)
@@ -955,7 +957,7 @@ int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			  u32 *tx_info)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct mt76x35_sta *msta = container_of(wcid, struct mt76x35_sta,
 						wcid);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -990,7 +992,7 @@ int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 }
 
 static bool
-mt7603_fill_txs(struct mt7603_dev *dev, struct mt76x35_sta *sta,
+mt7603_fill_txs(struct mt76x35_dev *dev, struct mt76x35_sta *sta,
 		struct ieee80211_tx_info *info, __le32 *txs_data)
 {
 	struct ieee80211_supported_band *sband;
@@ -1102,7 +1104,7 @@ out:
 }
 
 static bool
-mt7603_mac_add_txs_skb(struct mt7603_dev *dev, struct mt76x35_sta *sta,
+mt7603_mac_add_txs_skb(struct mt76x35_dev *dev, struct mt76x35_sta *sta,
 		       int pid, __le32 *txs_data)
 {
 	struct mt76_dev *mdev = &dev->mt76;
@@ -1139,7 +1141,7 @@ mt7603_mac_add_txs_skb(struct mt7603_dev *dev, struct mt76x35_sta *sta,
 	return !!skb;
 }
 
-void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
+void mt7603_mac_add_txs(struct mt76x35_dev *dev, void *data)
 {
 	struct ieee80211_tx_info info = {};
 	struct ieee80211_sta *sta = NULL;
@@ -1186,7 +1188,7 @@ out:
 void mt7603_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			    struct mt76_queue_entry *e, bool flush)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct sk_buff *skb = e->skb;
 
 	if (!e->txwi) {
@@ -1201,7 +1203,7 @@ void mt7603_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 }
 
 static bool
-wait_for_wpdma(struct mt7603_dev *dev)
+wait_for_wpdma(struct mt76x35_dev *dev)
 {
 	return mt76_poll(dev, MT_WPDMA_GLO_CFG,
 			 MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
@@ -1209,7 +1211,7 @@ wait_for_wpdma(struct mt7603_dev *dev)
 			 0, 1000);
 }
 
-static void mt7603_pse_reset(struct mt7603_dev *dev)
+static void mt7603_pse_reset(struct mt76x35_dev *dev)
 {
 	/* Clear previous reset result */
 	if (!dev->reset_cause[RESET_CAUSE_RESET_FAILED])
@@ -1232,7 +1234,7 @@ static void mt7603_pse_reset(struct mt7603_dev *dev)
 		dev->reset_cause[RESET_CAUSE_RESET_FAILED] = 0;
 }
 
-void mt7603_mac_dma_start(struct mt7603_dev *dev)
+void mt7603_mac_dma_start(struct mt76x35_dev *dev)
 {
 	mt7603_mac_start(dev);
 
@@ -1248,7 +1250,7 @@ void mt7603_mac_dma_start(struct mt7603_dev *dev)
 	mt7603_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL);
 }
 
-void mt7603_mac_start(struct mt7603_dev *dev)
+void mt7603_mac_start(struct mt76x35_dev *dev)
 {
 	mt76_clear(dev, MT_ARB_SCR,
 		   MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
@@ -1256,7 +1258,7 @@ void mt7603_mac_start(struct mt7603_dev *dev)
 	mt76_set(dev, MT_WF_ARB_RQCR, MT_WF_ARB_RQCR_RX_START);
 }
 
-void mt7603_mac_stop(struct mt7603_dev *dev)
+void mt7603_mac_stop(struct mt76x35_dev *dev)
 {
 	mt76_set(dev, MT_ARB_SCR,
 		 MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
@@ -1264,7 +1266,7 @@ void mt7603_mac_stop(struct mt7603_dev *dev)
 	mt76_clear(dev, MT_WF_ARB_RQCR, MT_WF_ARB_RQCR_RX_START);
 }
 
-void mt7603_pse_client_reset(struct mt7603_dev *dev)
+void mt7603_pse_client_reset(struct mt76x35_dev *dev)
 {
 	u32 addr;
 
@@ -1296,7 +1298,7 @@ void mt7603_pse_client_reset(struct mt7603_dev *dev)
 		   MT_CLIENT_RESET_TX_R_E_2);
 }
 
-static void mt7603_dma_sched_reset(struct mt7603_dev *dev)
+static void mt7603_dma_sched_reset(struct mt76x35_dev *dev)
 {
 	if (!is_mt7628(dev))
 		return;
@@ -1305,7 +1307,7 @@ static void mt7603_dma_sched_reset(struct mt7603_dev *dev)
 	mt76_clear(dev, MT_SCH_4, MT_SCH_4_RESET);
 }
 
-static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
+static void mt7603_mac_watchdog_reset(struct mt76x35_dev *dev)
 {
 	int beacon_int = dev->beacon_int;
 	u32 mask = dev->mt76.mmio.irqmask;
@@ -1380,7 +1382,7 @@ skip_dma_reset:
 	mt76_txq_schedule_all(&dev->mt76);
 }
 
-static u32 mt7603_dma_debug(struct mt7603_dev *dev, u8 index)
+static u32 mt7603_dma_debug(struct mt76x35_dev *dev, u8 index)
 {
 	u32 val;
 
@@ -1392,7 +1394,7 @@ static u32 mt7603_dma_debug(struct mt7603_dev *dev, u8 index)
 	return FIELD_GET(MT_WPDMA_DEBUG_VALUE, val);
 }
 
-static bool mt7603_rx_fifo_busy(struct mt7603_dev *dev)
+static bool mt7603_rx_fifo_busy(struct mt76x35_dev *dev)
 {
 	if (is_mt7628(dev))
 		return mt7603_dma_debug(dev, 9) & BIT(9);
@@ -1400,7 +1402,7 @@ static bool mt7603_rx_fifo_busy(struct mt7603_dev *dev)
 	return mt7603_dma_debug(dev, 2) & BIT(8);
 }
 
-static bool mt7603_rx_dma_busy(struct mt7603_dev *dev)
+static bool mt7603_rx_dma_busy(struct mt76x35_dev *dev)
 {
 	if (!(mt76_rr(dev, MT_WPDMA_GLO_CFG) & MT_WPDMA_GLO_CFG_RX_DMA_BUSY))
 		return false;
@@ -1408,7 +1410,7 @@ static bool mt7603_rx_dma_busy(struct mt7603_dev *dev)
 	return mt7603_rx_fifo_busy(dev);
 }
 
-static bool mt7603_tx_dma_busy(struct mt7603_dev *dev)
+static bool mt7603_tx_dma_busy(struct mt76x35_dev *dev)
 {
 	u32 val;
 
@@ -1419,7 +1421,7 @@ static bool mt7603_tx_dma_busy(struct mt7603_dev *dev)
 	return (val & BIT(8)) && (val & 0xf) != 0xf;
 }
 
-static bool mt7603_tx_hang(struct mt7603_dev *dev)
+static bool mt7603_tx_hang(struct mt76x35_dev *dev)
 {
 	struct mt76_queue *q;
 	u32 dma_idx, prev_dma_idx;
@@ -1443,7 +1445,7 @@ static bool mt7603_tx_hang(struct mt7603_dev *dev)
 	return i < 4;
 }
 
-static bool mt7603_rx_pse_busy(struct mt7603_dev *dev)
+static bool mt7603_rx_pse_busy(struct mt76x35_dev *dev)
 {
 	u32 addr, val;
 
@@ -1464,9 +1466,9 @@ static bool mt7603_rx_pse_busy(struct mt7603_dev *dev)
 }
 
 static bool
-mt7603_watchdog_check(struct mt7603_dev *dev, u8 *counter,
-		      enum mt7603_reset_cause cause,
-		      bool (*check)(struct mt7603_dev *dev))
+mt7603_watchdog_check(struct mt76x35_dev *dev, u8 *counter,
+		      enum mt76x35_reset_cause cause,
+		      bool (*check)(struct mt76x35_dev *dev))
 {
 	if (dev->reset_test == cause + 1) {
 		dev->reset_test = 0;
@@ -1492,7 +1494,7 @@ trigger:
 
 void mt7603_update_channel(struct mt76_dev *mdev)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct mt76_channel_state *state;
 	ktime_t cur_time;
 	u32 busy;
@@ -1512,7 +1514,7 @@ void mt7603_update_channel(struct mt76_dev *mdev)
 }
 
 void
-mt7603_edcca_set_strict(struct mt7603_dev *dev, bool val)
+mt7603_edcca_set_strict(struct mt76x35_dev *dev, bool val)
 {
 	u32 rxtd_6 = 0xd7c80000;
 
@@ -1539,7 +1541,7 @@ mt7603_edcca_set_strict(struct mt7603_dev *dev, bool val)
 }
 
 static void
-mt7603_edcca_check(struct mt7603_dev *dev)
+mt7603_edcca_check(struct mt76x35_dev *dev)
 {
 	u32 val = mt76_rr(dev, MT_AGC(41));
 	ktime_t cur_time;
@@ -1596,7 +1598,7 @@ mt7603_edcca_check(struct mt7603_dev *dev)
 		dev->ed_trigger = -MT7603_EDCCA_BLOCK_TH;
 }
 
-void mt7603_cca_stats_reset(struct mt7603_dev *dev)
+void mt7603_cca_stats_reset(struct mt76x35_dev *dev)
 {
 	mt76_set(dev, MT_PHYCTRL(2), MT_PHYCTRL_2_STATUS_RESET);
 	mt76_clear(dev, MT_PHYCTRL(2), MT_PHYCTRL_2_STATUS_RESET);
@@ -1604,7 +1606,7 @@ void mt7603_cca_stats_reset(struct mt7603_dev *dev)
 }
 
 static void
-mt7603_adjust_sensitivity(struct mt7603_dev *dev)
+mt7603_adjust_sensitivity(struct mt76x35_dev *dev)
 {
 	u32 agc0 = dev->agc0, agc3 = dev->agc3;
 	u32 adj;
@@ -1650,7 +1652,7 @@ mt7603_adjust_sensitivity(struct mt7603_dev *dev)
 }
 
 static void
-mt7603_false_cca_check(struct mt7603_dev *dev)
+mt7603_false_cca_check(struct mt76x35_dev *dev)
 {
 	int pd_cck, pd_ofdm, mdrdy_cck, mdrdy_ofdm;
 	int false_cca;
@@ -1706,8 +1708,8 @@ out:
 
 void mt7603_mac_work(struct work_struct *work)
 {
-	struct mt7603_dev *dev = container_of(work, struct mt7603_dev,
-					      mac_work.work);
+	struct mt76x35_dev *dev = container_of(work, struct mt76x35_dev,
+					       mac_work.work);
 	bool reset = false;
 
 	mt76_tx_status_check(&dev->mt76, NULL, false);

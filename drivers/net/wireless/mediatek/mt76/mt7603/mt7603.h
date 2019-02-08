@@ -63,92 +63,17 @@ enum mt7603_bw {
 	MT_BW_80,
 };
 
-enum mt7603_reset_cause {
-	RESET_CAUSE_TX_HANG,
-	RESET_CAUSE_TX_BUSY,
-	RESET_CAUSE_RX_BUSY,
-	RESET_CAUSE_BEACON_STUCK,
-	RESET_CAUSE_RX_PSE_BUSY,
-	RESET_CAUSE_MCU_HANG,
-	RESET_CAUSE_RESET_FAILED,
-	__RESET_CAUSE_MAX
-};
-
-struct mt7603_dev {
-	struct mt76_dev mt76; /* must be first */
-
-	const struct mt76_bus_ops *bus_ops;
-
-	u32 rxfilter;
-
-	u8 vif_mask;
-
-	struct mt76x35_sta global_sta;
-
-	u32 agc0, agc3;
-	u32 false_cca_ofdm, false_cca_cck;
-	unsigned long last_cca_adj;
-
-	u8 rssi_offset[3];
-
-	u8 slottime;
-	s16 coverage_class;
-
-	s8 tx_power_limit;
-
-	ktime_t survey_time;
-	ktime_t ed_time;
-	int beacon_int;
-
-	struct mt76_queue q_rx;
-
-	spinlock_t ps_lock;
-
-	u8 mac_work_count;
-
-	u8 mcu_running;
-	u8 ed_monitor;
-
-	s8 ed_trigger;
-	u8 ed_strict_mode;
-	u8 ed_strong_signal;
-
-	s8 sensitivity;
-
-	u8 beacon_mask;
-
-	u8 beacon_check;
-	u8 tx_hang_check;
-	u8 tx_dma_check;
-	u8 rx_dma_check;
-	u8 rx_pse_check;
-	u8 mcu_hang;
-
-	enum mt7603_reset_cause cur_reset_cause;
-
-	u16 tx_dma_idx[4];
-	u16 rx_dma_idx;
-
-	u32 reset_test;
-
-	unsigned int reset_cause[__RESET_CAUSE_MAX];
-
-	struct delayed_work mac_work;
-	struct tasklet_struct tx_tasklet;
-	struct tasklet_struct pre_tbtt_tasklet;
-};
-
 extern const struct mt76_driver_ops mt7603_drv_ops;
 extern const struct ieee80211_ops mt7603_ops;
 extern struct pci_driver mt7603_pci_driver;
 extern struct platform_driver mt76_wmac_driver;
 
-static inline bool is_mt7603(struct mt7603_dev *dev)
+static inline bool is_mt7603(struct mt76x35_dev *dev)
 {
 	return mt76xx_chip(dev) == 0x7603;
 }
 
-static inline bool is_mt7628(struct mt7603_dev *dev)
+static inline bool is_mt7628(struct mt76x35_dev *dev)
 {
 	return mt76xx_chip(dev) == 0x7628;
 }
@@ -156,62 +81,62 @@ static inline bool is_mt7628(struct mt7603_dev *dev)
 /* need offset to prevent conflict with ampdu_ack_len */
 #define MT_RATE_DRIVER_DATA_OFFSET	4
 
-u32 mt7603_reg_map(struct mt7603_dev *dev, u32 addr);
+u32 mt7603_reg_map(struct mt76x35_dev *dev, u32 addr);
 
 irqreturn_t mt7603_irq_handler(int irq, void *dev_instance);
 
-int mt7603_register_device(struct mt7603_dev *dev);
-void mt7603_unregister_device(struct mt7603_dev *dev);
-int mt7603_eeprom_init(struct mt7603_dev *dev);
-int mt7603_dma_init(struct mt7603_dev *dev);
-void mt7603_dma_cleanup(struct mt7603_dev *dev);
-int mt7603_mcu_init(struct mt7603_dev *dev);
-void mt7603_init_debugfs(struct mt7603_dev *dev);
+int mt7603_register_device(struct mt76x35_dev *dev);
+void mt7603_unregister_device(struct mt76x35_dev *dev);
+int mt7603_eeprom_init(struct mt76x35_dev *dev);
+int mt7603_dma_init(struct mt76x35_dev *dev);
+void mt7603_dma_cleanup(struct mt76x35_dev *dev);
+int mt7603_mcu_init(struct mt76x35_dev *dev);
+void mt7603_init_debugfs(struct mt76x35_dev *dev);
 
-void mt7603_set_irq_mask(struct mt7603_dev *dev, u32 clear, u32 set);
+void mt7603_set_irq_mask(struct mt76x35_dev *dev, u32 clear, u32 set);
 
-static inline void mt7603_irq_enable(struct mt7603_dev *dev, u32 mask)
+static inline void mt7603_irq_enable(struct mt76x35_dev *dev, u32 mask)
 {
 	mt7603_set_irq_mask(dev, 0, mask);
 }
 
-static inline void mt7603_irq_disable(struct mt7603_dev *dev, u32 mask)
+static inline void mt7603_irq_disable(struct mt76x35_dev *dev, u32 mask)
 {
 	mt7603_set_irq_mask(dev, mask, 0);
 }
 
-void mt7603_mac_dma_start(struct mt7603_dev *dev);
-void mt7603_mac_start(struct mt7603_dev *dev);
-void mt7603_mac_stop(struct mt7603_dev *dev);
+void mt7603_mac_dma_start(struct mt76x35_dev *dev);
+void mt7603_mac_start(struct mt76x35_dev *dev);
+void mt7603_mac_stop(struct mt76x35_dev *dev);
 void mt7603_mac_work(struct work_struct *work);
-void mt7603_mac_set_timing(struct mt7603_dev *dev);
-void mt7603_beacon_set_timer(struct mt7603_dev *dev, int idx, int intval);
-int mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb);
-void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data);
-void mt7603_mac_rx_ba_reset(struct mt7603_dev *dev, void *addr, u8 tid);
-void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid, int ssn,
+void mt7603_mac_set_timing(struct mt76x35_dev *dev);
+void mt7603_beacon_set_timer(struct mt76x35_dev *dev, int idx, int intval);
+int mt7603_mac_fill_rx(struct mt76x35_dev *dev, struct sk_buff *skb);
+void mt7603_mac_add_txs(struct mt76x35_dev *dev, void *data);
+void mt7603_mac_rx_ba_reset(struct mt76x35_dev *dev, void *addr, u8 tid);
+void mt7603_mac_tx_ba_reset(struct mt76x35_dev *dev, int wcid, int tid, int ssn,
 			    int ba_size);
 
-void mt7603_pse_client_reset(struct mt7603_dev *dev);
+void mt7603_pse_client_reset(struct mt76x35_dev *dev);
 
-int mt7603_mcu_set_channel(struct mt7603_dev *dev);
-int mt7603_mcu_set_eeprom(struct mt7603_dev *dev);
-void mt7603_mcu_exit(struct mt7603_dev *dev);
+int mt7603_mcu_set_channel(struct mt76x35_dev *dev);
+int mt7603_mcu_set_eeprom(struct mt76x35_dev *dev);
+void mt7603_mcu_exit(struct mt76x35_dev *dev);
 
-void mt7603_wtbl_init(struct mt7603_dev *dev, int idx, int vif,
+void mt7603_wtbl_init(struct mt76x35_dev *dev, int idx, int vif,
 		      const u8 *mac_addr);
-void mt7603_wtbl_clear(struct mt7603_dev *dev, int idx);
-void mt7603_wtbl_update_cap(struct mt7603_dev *dev, struct ieee80211_sta *sta);
-void mt7603_wtbl_set_rates(struct mt7603_dev *dev, struct mt76x35_sta *sta,
+void mt7603_wtbl_clear(struct mt76x35_dev *dev, int idx);
+void mt7603_wtbl_update_cap(struct mt76x35_dev *dev, struct ieee80211_sta *sta);
+void mt7603_wtbl_set_rates(struct mt76x35_dev *dev, struct mt76x35_sta *sta,
 			   struct ieee80211_tx_rate *probe_rate,
 			   struct ieee80211_tx_rate *rates);
-int mt7603_wtbl_set_key(struct mt7603_dev *dev, int wcid,
+int mt7603_wtbl_set_key(struct mt76x35_dev *dev, int wcid,
 			struct ieee80211_key_conf *key);
-void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt76x35_sta *sta,
+void mt7603_wtbl_set_ps(struct mt76x35_dev *dev, struct mt76x35_sta *sta,
 			bool enabled);
-void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt76x35_sta *sta,
+void mt7603_wtbl_set_smps(struct mt76x35_dev *dev, struct mt76x35_sta *sta,
 			  bool enabled);
-void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort);
+void mt7603_filter_tx(struct mt76x35_dev *dev, int idx, bool abort);
 
 int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  struct sk_buff *skb, struct mt76_queue *q,
@@ -236,7 +161,7 @@ void mt7603_pre_tbtt_tasklet(unsigned long arg);
 
 void mt7603_update_channel(struct mt76_dev *mdev);
 
-void mt7603_edcca_set_strict(struct mt7603_dev *dev, bool val);
-void mt7603_cca_stats_reset(struct mt7603_dev *dev);
+void mt7603_edcca_set_strict(struct mt76x35_dev *dev, bool val);
+void mt7603_cca_stats_reset(struct mt76x35_dev *dev);
 
 #endif

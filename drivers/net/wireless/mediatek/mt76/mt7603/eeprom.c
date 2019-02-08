@@ -19,7 +19,7 @@
 #include "eeprom.h"
 
 static int
-mt7603_efuse_read(struct mt7603_dev *dev, u32 base, u16 addr, u8 *data)
+mt7603_efuse_read(struct mt76x35_dev *dev, u32 base, u16 addr, u8 *data)
 {
 	u32 val;
 	int i;
@@ -52,7 +52,7 @@ mt7603_efuse_read(struct mt7603_dev *dev, u32 base, u16 addr, u8 *data)
 }
 
 static int
-mt7603_efuse_init(struct mt7603_dev *dev)
+mt7603_efuse_init(struct mt76x35_dev *dev)
 {
 	u32 base = mt7603_reg_map(dev, MT_EFUSE_BASE);
 	int len = MT7603_EEPROM_SIZE;
@@ -78,7 +78,7 @@ mt7603_efuse_init(struct mt7603_dev *dev)
 }
 
 static bool
-mt7603_has_cal_free_data(struct mt7603_dev *dev, u8 *efuse)
+mt7603_has_cal_free_data(struct mt76x35_dev *dev, u8 *efuse)
 {
 	if (!efuse[MT_EE_TEMP_SENSOR_CAL])
 		return false;
@@ -102,7 +102,7 @@ mt7603_has_cal_free_data(struct mt7603_dev *dev, u8 *efuse)
 }
 
 static void
-mt7603_apply_cal_free_data(struct mt7603_dev *dev, u8 *efuse)
+mt7603_apply_cal_free_data(struct mt76x35_dev *dev, u8 *efuse)
 {
 	static const u8 cal_free_bytes[] = {
 		MT_EE_TEMP_SENSOR_CAL,
@@ -133,7 +133,7 @@ mt7603_apply_cal_free_data(struct mt7603_dev *dev, u8 *efuse)
 }
 
 static int
-mt7603_eeprom_load(struct mt7603_dev *dev)
+mt7603_eeprom_load(struct mt76x35_dev *dev)
 {
 	int ret;
 
@@ -157,7 +157,7 @@ static int mt7603_check_eeprom(struct mt76_dev *dev)
 	}
 }
 
-int mt7603_eeprom_init(struct mt7603_dev *dev)
+int mt7603_eeprom_init(struct mt76x35_dev *dev)
 {
 	int ret;
 

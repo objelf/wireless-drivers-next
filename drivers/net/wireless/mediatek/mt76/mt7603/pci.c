@@ -29,7 +29,7 @@ static const struct pci_device_id mt76pci_device_table[] = {
 static int
 mt76pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct mt7603_dev *dev;
+	struct mt76x35_dev *dev;
 	struct mt76_dev *mdev;
 	int ret;
 
@@ -52,7 +52,7 @@ mt76pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!mdev)
 		return -ENOMEM;
 
-	dev = container_of(mdev, struct mt7603_dev, mt76);
+	dev = container_of(mdev, struct mt76x35_dev, mt76);
 	mt76_mmio_init(mdev, pcim_iomap_table(pdev)[0]);
 
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
@@ -78,7 +78,8 @@ static void
 mt76pci_remove(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev,
+					       mt76);
 
 	mt7603_unregister_device(dev);
 }

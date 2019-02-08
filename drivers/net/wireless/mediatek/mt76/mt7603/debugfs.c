@@ -20,7 +20,7 @@
 static int
 mt7603_reset_read(struct seq_file *s, void *data)
 {
-	struct mt7603_dev *dev = dev_get_drvdata(s->private);
+	struct mt76x35_dev *dev = dev_get_drvdata(s->private);
 	static const char * const reset_cause_str[] = {
 		[RESET_CAUSE_TX_HANG] = "TX hang",
 		[RESET_CAUSE_TX_BUSY] = "TX DMA busy stuck",
@@ -46,7 +46,7 @@ mt7603_reset_read(struct seq_file *s, void *data)
 static int
 mt7603_radio_read(struct seq_file *s, void *data)
 {
-	struct mt7603_dev *dev = dev_get_drvdata(s->private);
+	struct mt76x35_dev *dev = dev_get_drvdata(s->private);
 
 	seq_printf(s, "Sensitivity: %d\n", dev->sensitivity);
 	seq_printf(s, "False CCA: ofdm=%d cck=%d\n",
@@ -55,7 +55,7 @@ mt7603_radio_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-void mt7603_init_debugfs(struct mt7603_dev *dev)
+void mt7603_init_debugfs(struct mt76x35_dev *dev)
 {
 	struct dentry *dir;
 

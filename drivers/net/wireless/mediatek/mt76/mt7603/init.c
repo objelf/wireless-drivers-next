@@ -34,7 +34,7 @@ const struct mt76_driver_ops mt7603_drv_ops = {
 };
 
 static void
-mt7603_set_tmac_template(struct mt7603_dev *dev)
+mt7603_set_tmac_template(struct mt76x35_dev *dev)
 {
 	u32 desc[5] = {
 		[1] = FIELD_PREP(MT_TXD3_REM_TX_COUNT, 0xf),
@@ -50,7 +50,7 @@ mt7603_set_tmac_template(struct mt7603_dev *dev)
 }
 
 static void
-mt7603_dma_sched_init(struct mt7603_dev *dev)
+mt7603_dma_sched_init(struct mt76x35_dev *dev)
 {
 	int page_size = 128;
 	int page_count;
@@ -124,7 +124,7 @@ mt7603_dma_sched_init(struct mt7603_dev *dev)
 }
 
 static void
-mt7603_phy_init(struct mt7603_dev *dev)
+mt7603_phy_init(struct mt76x35_dev *dev)
 {
 	int rx_chains = dev->mt76.antenna_mask;
 	int tx_chains = __sw_hweight8(rx_chains) - 1;
@@ -143,7 +143,7 @@ mt7603_phy_init(struct mt7603_dev *dev)
 }
 
 static void
-mt7603_mac_init(struct mt7603_dev *dev)
+mt7603_mac_init(struct mt76x35_dev *dev)
 {
 	u8 bc_addr[ETH_ALEN];
 	u32 addr;
@@ -272,7 +272,7 @@ mt7603_mac_init(struct mt7603_dev *dev)
 }
 
 static int
-mt7603_init_hardware(struct mt7603_dev *dev)
+mt7603_init_hardware(struct mt76x35_dev *dev)
 {
 	int i, ret;
 
@@ -364,8 +364,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 static void mt7603_led_set_config(struct mt76_dev *mt76, u8 delay_on,
 				  u8 delay_off)
 {
-	struct mt7603_dev *dev = container_of(mt76, struct mt7603_dev,
-					      mt76);
+	struct mt76x35_dev *dev = container_of(mt76, struct mt76x35_dev, mt76);
 	u32 val, addr;
 
 	val = MT_LED_STATUS_DURATION(0xffff) |
@@ -412,7 +411,7 @@ static void mt7603_led_set_brightness(struct led_classdev *led_cdev,
 		mt7603_led_set_config(mt76, 0xff, 0);
 }
 
-static u32 __mt7603_reg_addr(struct mt7603_dev *dev, u32 addr)
+static u32 __mt7603_reg_addr(struct mt76x35_dev *dev, u32 addr)
 {
 	if (addr < 0x100000)
 		return addr;
@@ -422,7 +421,7 @@ static u32 __mt7603_reg_addr(struct mt7603_dev *dev, u32 addr)
 
 static u32 mt7603_rr(struct mt76_dev *mdev, u32 offset)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	u32 addr = __mt7603_reg_addr(dev, offset);
 
 	return dev->bus_ops->rr(mdev, addr);
@@ -430,7 +429,7 @@ static u32 mt7603_rr(struct mt76_dev *mdev, u32 offset)
 
 static void mt7603_wr(struct mt76_dev *mdev, u32 offset, u32 val)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	u32 addr = __mt7603_reg_addr(dev, offset);
 
 	dev->bus_ops->wr(mdev, addr, val);
@@ -438,7 +437,7 @@ static void mt7603_wr(struct mt76_dev *mdev, u32 offset, u32 val)
 
 static u32 mt7603_rmw(struct mt76_dev *mdev, u32 offset, u32 mask, u32 val)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	u32 addr = __mt7603_reg_addr(dev, offset);
 
 	return dev->bus_ops->rmw(mdev, addr, mask, val);
@@ -449,7 +448,7 @@ mt7603_regd_notifier(struct wiphy *wiphy,
 		     struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	dev->ed_monitor = request->dfs_region == NL80211_DFS_ETSI;
 }
@@ -470,7 +469,7 @@ mt7603_txpower_signed(int val)
 }
 
 static void
-mt7603_init_txpower(struct mt7603_dev *dev,
+mt7603_init_txpower(struct mt76x35_dev *dev,
 		    struct ieee80211_supported_band *sband)
 {
 	struct ieee80211_channel *chan;
@@ -507,7 +506,7 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 }
 
 
-int mt7603_register_device(struct mt7603_dev *dev)
+int mt7603_register_device(struct mt76x35_dev *dev)
 {
 	struct mt76_bus_ops *bus_ops;
 	struct ieee80211_hw *hw = mt76_hw(dev);
@@ -583,7 +582,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	return 0;
 }
 
-void mt7603_unregister_device(struct mt7603_dev *dev)
+void mt7603_unregister_device(struct mt76x35_dev *dev)
 {
 	tasklet_disable(&dev->pre_tbtt_tasklet);
 	mt76_unregister_device(&dev->mt76);

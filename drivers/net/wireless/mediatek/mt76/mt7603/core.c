@@ -17,7 +17,7 @@
 
 #include "mt7603.h"
 
-void mt7603_set_irq_mask(struct mt7603_dev *dev, u32 clear, u32 set)
+void mt7603_set_irq_mask(struct mt76x35_dev *dev, u32 clear, u32 set)
 {
 	unsigned long flags;
 
@@ -30,14 +30,14 @@ void mt7603_set_irq_mask(struct mt7603_dev *dev, u32 clear, u32 set)
 
 void mt7603_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 
 	mt7603_irq_enable(dev, MT_INT_RX_DONE(q));
 }
 
 irqreturn_t mt7603_irq_handler(int irq, void *dev_instance)
 {
-	struct mt7603_dev *dev = dev_instance;
+	struct mt76x35_dev *dev = dev_instance;
 	u32 intr;
 
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
@@ -77,7 +77,7 @@ irqreturn_t mt7603_irq_handler(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-u32 mt7603_reg_map(struct mt7603_dev *dev, u32 addr)
+u32 mt7603_reg_map(struct mt76x35_dev *dev, u32 addr)
 {
 	u32 base = addr & GENMASK(31, 19);
 	u32 offset = addr & GENMASK(18, 0);

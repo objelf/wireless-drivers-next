@@ -29,7 +29,7 @@ struct mt7603_fw_trailer {
 } __packed;
 
 static int
-__mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb, int cmd,
+__mt7603_mcu_msg_send(struct mt76x35_dev *dev, struct sk_buff *skb, int cmd,
 		      int query, int *wait_seq)
 {
 	int hdrlen = dev->mcu_running ? sizeof(struct mt7603_mcu_txd) : 12;
@@ -73,7 +73,7 @@ __mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb, int cmd,
 }
 
 static int
-mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb, int cmd,
+mt7603_mcu_msg_send(struct mt76x35_dev *dev, struct sk_buff *skb, int cmd,
 		    int query)
 {
 	struct mt76_dev *mdev = &dev->mt76;
@@ -117,7 +117,7 @@ out:
 }
 
 static int
-mt7603_mcu_init_download(struct mt7603_dev *dev, u32 addr, u32 len)
+mt7603_mcu_init_download(struct mt76x35_dev *dev, u32 addr, u32 len)
 {
 	struct {
 		__le32 addr;
@@ -135,7 +135,7 @@ mt7603_mcu_init_download(struct mt7603_dev *dev, u32 addr, u32 len)
 }
 
 static int
-mt7603_mcu_send_firmware(struct mt7603_dev *dev, const void *data, int len)
+mt7603_mcu_send_firmware(struct mt76x35_dev *dev, const void *data, int len)
 {
 	struct sk_buff *skb;
 	int ret = 0;
@@ -161,7 +161,7 @@ mt7603_mcu_send_firmware(struct mt7603_dev *dev, const void *data, int len)
 }
 
 static int
-mt7603_mcu_start_firmware(struct mt7603_dev *dev, u32 addr)
+mt7603_mcu_start_firmware(struct mt76x35_dev *dev, u32 addr)
 {
 	struct {
 		__le32 override;
@@ -177,7 +177,7 @@ mt7603_mcu_start_firmware(struct mt7603_dev *dev, u32 addr)
 }
 
 static int
-mt7603_mcu_restart(struct mt7603_dev *dev)
+mt7603_mcu_restart(struct mt76x35_dev *dev)
 {
 	struct sk_buff *skb = mt7603_mcu_msg_alloc(NULL, 0);
 
@@ -186,7 +186,7 @@ mt7603_mcu_restart(struct mt7603_dev *dev)
 }
 
 static int
-mt7603_load_firmware(struct mt7603_dev *dev)
+mt7603_load_firmware(struct mt76x35_dev *dev)
 {
 	const struct firmware *fw;
 	const struct mt7603_fw_trailer *hdr;
@@ -284,20 +284,20 @@ out:
 	return ret;
 }
 
-int mt7603_mcu_init(struct mt7603_dev *dev)
+int mt7603_mcu_init(struct mt76x35_dev *dev)
 {
 	mutex_init(&dev->mt76.mmio.mcu.mutex);
 
 	return mt7603_load_firmware(dev);
 }
 
-void mt7603_mcu_exit(struct mt7603_dev *dev)
+void mt7603_mcu_exit(struct mt76x35_dev *dev)
 {
 	mt7603_mcu_restart(dev);
 	skb_queue_purge(&dev->mt76.mmio.mcu.res_q);
 }
 
-int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
+int mt7603_mcu_set_eeprom(struct mt76x35_dev *dev)
 {
 	static const u16 req_fields[] = {
 #define WORD(_start)			\
@@ -398,7 +398,7 @@ int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
 				   MCU_Q_SET);
 }
 
-static int mt7603_mcu_set_tx_power(struct mt7603_dev *dev)
+static int mt7603_mcu_set_tx_power(struct mt76x35_dev *dev)
 {
 	struct {
 		u8 center_channel;
@@ -444,7 +444,7 @@ static int mt7603_mcu_set_tx_power(struct mt7603_dev *dev)
 				   MCU_Q_SET);
 }
 
-int mt7603_mcu_set_channel(struct mt7603_dev *dev)
+int mt7603_mcu_set_channel(struct mt76x35_dev *dev)
 {
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 	struct ieee80211_hw *hw = mt76_hw(dev);

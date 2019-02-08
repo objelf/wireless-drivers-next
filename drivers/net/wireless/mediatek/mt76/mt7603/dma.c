@@ -20,7 +20,7 @@
 #include "../dma.h"
 
 static int
-mt7603_init_tx_queue(struct mt7603_dev *dev, struct mt76_queue *q,
+mt7603_init_tx_queue(struct mt76x35_dev *dev, struct mt76_queue *q,
 		     int idx, int n_desc)
 {
 	int ret;
@@ -39,7 +39,7 @@ mt7603_init_tx_queue(struct mt7603_dev *dev, struct mt76_queue *q,
 }
 
 static void
-mt7603_rx_loopback_skb(struct mt7603_dev *dev, struct sk_buff *skb)
+mt7603_rx_loopback_skb(struct mt76x35_dev *dev, struct sk_buff *skb)
 {
 	__le32 *txd = (__le32 *)skb->data;
 	struct mt76x35_sta *msta;
@@ -81,7 +81,7 @@ free:
 void mt7603_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	__le32 *rxd = (__le32 *)skb->data;
 	__le32 *end = (__le32 *)&skb->data[skb->len];
 	enum rx_pkt_type type;
@@ -118,7 +118,7 @@ void mt7603_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 }
 
 static int
-mt7603_init_rx_queue(struct mt7603_dev *dev, struct mt76_queue *q,
+mt7603_init_rx_queue(struct mt76x35_dev *dev, struct mt76_queue *q,
 		     int idx, int n_desc, int bufsize)
 {
 	int ret;
@@ -139,7 +139,7 @@ mt7603_init_rx_queue(struct mt7603_dev *dev, struct mt76_queue *q,
 static void
 mt7603_tx_tasklet(unsigned long data)
 {
-	struct mt7603_dev *dev = (struct mt7603_dev *)data;
+	struct mt76x35_dev *dev = (struct mt76x35_dev *)data;
 	int i;
 
 	dev->tx_dma_check = 0;
@@ -149,7 +149,7 @@ mt7603_tx_tasklet(unsigned long data)
 	mt7603_irq_enable(dev, MT_INT_TX_DONE_ALL);
 }
 
-int mt7603_dma_init(struct mt7603_dev *dev)
+int mt7603_dma_init(struct mt76x35_dev *dev)
 {
 	static const u8 wmm_queue_map[] = {
 		[IEEE80211_AC_BK] = 0,
@@ -218,7 +218,7 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 	return mt76_init_queues(dev);
 }
 
-void mt7603_dma_cleanup(struct mt7603_dev *dev)
+void mt7603_dma_cleanup(struct mt76x35_dev *dev)
 {
 	mt76_clear(dev, MT_WPDMA_GLO_CFG,
 		   MT_WPDMA_GLO_CFG_TX_DMA_EN |

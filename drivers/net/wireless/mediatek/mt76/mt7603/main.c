@@ -25,7 +25,7 @@
 static int
 mt7603_start(struct ieee80211_hw *hw)
 {
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	mt7603_mac_start(dev);
 	dev->survey_time = ktime_get_boottime();
@@ -38,7 +38,7 @@ mt7603_start(struct ieee80211_hw *hw)
 static void
 mt7603_stop(struct ieee80211_hw *hw)
 {
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	cancel_delayed_work_sync(&dev->mac_work);
@@ -49,7 +49,7 @@ static int
 mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	struct mt76_txq *mtxq;
 	u8 bc_addr[ETH_ALEN];
 	int idx;
@@ -100,7 +100,7 @@ static void
 mt7603_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	int idx = mvif->sta.wcid.idx;
 
 	mt76_wr(dev, MT_MAC_ADDR0(mvif->idx), 0);
@@ -118,7 +118,7 @@ mt7603_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 
 static void
-mt7603_init_edcca(struct mt7603_dev *dev)
+mt7603_init_edcca(struct mt76x35_dev *dev)
 {
 	/* Set lower signal level to -65dBm */
 	mt76_rmw_field(dev, MT_RXTD(8), MT_RXTD_8_LOWER_SIGNAL, 0x23);
@@ -139,7 +139,7 @@ mt7603_init_edcca(struct mt7603_dev *dev)
 }
 
 static int
-mt7603_set_channel(struct mt7603_dev *dev, struct cfg80211_chan_def *def)
+mt7603_set_channel(struct mt76x35_dev *dev, struct cfg80211_chan_def *def)
 {
 	u8 *rssi_data = (u8 *)dev->mt76.eeprom.data;
 	int idx, ret;
@@ -211,7 +211,7 @@ out:
 static int
 mt7603_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	int ret = 0;
 
 	if (changed & (IEEE80211_CONF_CHANGE_CHANNEL |
@@ -238,7 +238,7 @@ static void
 mt7603_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 			unsigned int *total_flags, u64 multicast)
 {
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	u32 flags = 0;
 
 #define MT76_FILTER(_flag, _hw) do { \
@@ -279,7 +279,7 @@ mt7603_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *info, u32 changed)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -320,7 +320,7 @@ int
 mt7603_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	       struct ieee80211_sta *sta)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	int idx;
@@ -348,7 +348,7 @@ void
 mt7603_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		 struct ieee80211_sta *sta)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 
 	mt7603_wtbl_update_cap(dev, sta);
 }
@@ -357,7 +357,7 @@ void
 mt7603_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		  struct ieee80211_sta *sta)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
 
@@ -370,7 +370,7 @@ mt7603_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 }
 
 static void
-mt7603_ps_tx_list(struct mt7603_dev *dev, struct sk_buff_head *list)
+mt7603_ps_tx_list(struct mt76x35_dev *dev, struct sk_buff_head *list)
 {
 	struct sk_buff *skb;
 
@@ -382,7 +382,7 @@ mt7603_ps_tx_list(struct mt7603_dev *dev, struct sk_buff_head *list)
 void
 mt7603_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 {
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct sk_buff_head list;
 
@@ -408,7 +408,7 @@ mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 			       bool more_data)
 {
 	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	struct sk_buff_head list;
 	struct sk_buff *skb, *tmp;
 
@@ -441,7 +441,7 @@ mt7603_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 	       struct ieee80211_key_conf *key)
 {
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct mt76x35_sta *msta = sta ? (struct mt76x35_sta *)sta->drv_priv 
 				       : &mvif->sta;
@@ -486,7 +486,7 @@ static int
 mt7603_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	u16 cw_min = (1 << 5) - 1;
 	u16 cw_max = (1 << 10) - 1;
 	u32 val;
@@ -531,7 +531,7 @@ static void
 mt7603_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       const u8 *mac)
 {
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	set_bit(MT76_SCANNING, &dev->mt76.state);
 	mt7603_beacon_set_timer(dev, -1, 0);
@@ -540,7 +540,7 @@ mt7603_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static void
 mt7603_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	clear_bit(MT76_SCANNING, &dev->mt76.state);
 	mt7603_beacon_set_timer(dev, -1, dev->beacon_int);
@@ -557,7 +557,7 @@ mt7603_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		    struct ieee80211_ampdu_params *params)
 {
 	enum ieee80211_ampdu_mlme_action action = params->action;
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	struct ieee80211_sta *sta = params->sta;
 	struct ieee80211_txq *txq = sta->txq[params->tid];
 	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
@@ -611,7 +611,7 @@ mt7603_sta_rate_tbl_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct ieee80211_sta_rates *sta_rates = rcu_dereference(sta->rates);
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	int i;
 
 	spin_lock_bh(&dev->mt76.lock);
@@ -634,7 +634,7 @@ mt7603_sta_rate_tbl_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static void
 mt7603_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 {
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	dev->coverage_class = coverage_class;
 	mt7603_mac_set_timing(dev);
@@ -646,7 +646,7 @@ static void mt7603_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *cont
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
-	struct mt7603_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	struct mt76_wcid *wcid = &dev->global_sta.wcid;
 
 	if (control->sta) {
