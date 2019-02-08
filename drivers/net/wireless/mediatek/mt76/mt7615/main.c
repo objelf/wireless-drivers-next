@@ -36,14 +36,14 @@ static void mt7615_txq_init(struct mt7615_dev *dev, struct ieee80211_txq *txq)
 
 	mtxq = (struct mt76_txq *)txq->drv_priv;
 	if (txq->sta) {
-		struct mt7615_sta *sta;
+		struct mt76x35_sta *sta;
 
-		sta = (struct mt7615_sta *)txq->sta->drv_priv;
+		sta = (struct mt76x35_sta *)txq->sta->drv_priv;
 		mtxq->wcid = &sta->wcid;
 	} else {
-		struct mt7615_vif *mvif;
+		struct mt76x35_vif *mvif;
 
-		mvif = (struct mt7615_vif *)txq->vif->drv_priv;
+		mvif = (struct mt76x35_vif *)txq->vif->drv_priv;
 		mtxq->wcid = &mvif->sta.wcid;
 	}
 
@@ -83,7 +83,7 @@ static int get_omac_idx(enum nl80211_iftype type, u32 mask)
 static int mt7615_add_interface(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct mt7615_dev *dev = hw->priv;
 	int idx, ret = 0;
 
@@ -126,7 +126,7 @@ out:
 static void mt7615_remove_interface(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct mt7615_dev *dev = hw->priv;
 	int idx = mvif->sta.wcid.idx;
 
@@ -233,7 +233,7 @@ int mt7615_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	int idx;
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7615_WTBL_STA - 1);
@@ -270,16 +270,16 @@ static void mt7615_tx(struct ieee80211_hw *hw,
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 
 	if (control->sta) {
-		struct mt7615_sta *sta;
+		struct mt76x35_sta *sta;
 
-		sta = (struct mt7615_sta *)control->sta->drv_priv;
+		sta = (struct mt76x35_sta *)control->sta->drv_priv;
 		wcid = &sta->wcid;
 	}
 
 	if (vif && !control->sta) {
-		struct mt7615_vif *mvif;
+		struct mt76x35_vif *mvif;
 
-		mvif = (struct mt7615_vif *)vif->drv_priv;
+		mvif = (struct mt76x35_vif *)vif->drv_priv;
 		wcid = &mvif->sta.wcid;
 	}
 

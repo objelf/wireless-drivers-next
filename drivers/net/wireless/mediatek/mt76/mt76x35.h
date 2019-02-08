@@ -39,6 +39,9 @@ struct mt76x35_sta {
 struct mt76x35_vif {
 	struct mt76x35_sta sta; /* must be first */
 
+	u8 omac_idx;
+	u8 band_idx;
+	u8 wmm_idx;
 	u8 idx;
 };
 

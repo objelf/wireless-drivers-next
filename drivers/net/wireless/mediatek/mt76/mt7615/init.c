@@ -171,8 +171,8 @@ int mt7615_register_device(struct mt7615_dev *dev)
 
 	hw->queues = 4;
 
-	hw->sta_data_size = sizeof(struct mt7615_sta);
-	hw->vif_data_size = sizeof(struct mt7615_vif);
+	hw->sta_data_size = sizeof(struct mt76x35_sta);
+	hw->vif_data_size = sizeof(struct mt76x35_vif);
 
 	wiphy->iface_combinations = if_comb;
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);

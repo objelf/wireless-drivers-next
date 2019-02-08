@@ -675,7 +675,7 @@ static int __mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
 int mt7615_mcu_set_dev_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			    int en)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct dev_info dev_info = {0};
 
 	dev_info.omac_idx = mvif->omac_idx;
@@ -823,7 +823,7 @@ static void bss_info_convert_vif_type(enum nl80211_iftype type,
 int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			    int en)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct bss_info bss_info = {0};
 	u8 bmc_tx_wlan_idx = 0;
 	u32 network_type = 0, conn_type = 0;
@@ -833,7 +833,7 @@ int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	} else if (vif->type == NL80211_IFTYPE_STATION) {
 		/* find the unicast entry for sta mode bmc tx */
 		struct ieee80211_sta *ap_sta;
-		struct mt7615_sta *msta;
+		struct mt76x35_sta *msta;
 
 		rcu_read_lock();
 
@@ -843,7 +843,7 @@ int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			return -EINVAL;
 		}
 
-		msta = (struct mt7615_sta *)ap_sta->drv_priv;
+		msta = (struct mt76x35_sta *)ap_sta->drv_priv;
 		bmc_tx_wlan_idx = msta->wcid.idx;
 
 		rcu_read_unlock();
@@ -916,7 +916,7 @@ static int __mt7615_mcu_set_wtbl(struct mt7615_dev *dev, int wlan_idx,
 
 int mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct wtbl_generic *wtbl_generic;
 	struct wtbl_rx *wtbl_rx;
 	int buf_len, ret;
@@ -950,7 +950,7 @@ int mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 
 int mt7615_mcu_del_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 
 	return __mt7615_mcu_set_wtbl(dev, mvif->sta.wcid.idx,
 				     WTBL_RESET_AND_SET, NULL, 0);
@@ -959,8 +959,8 @@ int mt7615_mcu_del_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 int mt7615_mcu_add_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct wtbl_generic *wtbl_generic;
 	struct wtbl_rx *wtbl_rx;
 	int buf_len, ret;
@@ -1029,7 +1029,7 @@ int mt7615_mcu_add_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 int mt7615_mcu_del_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta)
 {
-	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 
 	return __mt7615_mcu_set_wtbl(dev, msta->wcid.idx,
 				     WTBL_RESET_AND_SET, NULL, 0);
@@ -1088,7 +1088,7 @@ static int __mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, int bss_idx,
 int mt7615_mcu_add_sta_rec_bmc(struct mt7615_dev *dev,
 			       struct ieee80211_vif *vif)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct sta_rec_basic *sta_rec_basic;
 	int buf_len, ret;
 	u8 *buf;
@@ -1117,7 +1117,7 @@ int mt7615_mcu_add_sta_rec_bmc(struct mt7615_dev *dev,
 int mt7615_mcu_del_sta_rec_bmc(struct mt7615_dev *dev,
 			       struct ieee80211_vif *vif)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct sta_rec_basic *sta_rec_basic;
 	int buf_len, ret;
 	u8 *buf;
@@ -1162,8 +1162,8 @@ static void sta_rec_convert_vif_type(enum nl80211_iftype type, u32 *conn_type)
 int mt7615_mcu_add_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct sta_rec_basic *sta_rec_basic;
 	struct sta_rec_ht *sta_rec_ht;
 	struct sta_rec_vht *sta_rec_vht;
@@ -1215,8 +1215,8 @@ int mt7615_mcu_add_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 int mt7615_mcu_del_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct sta_rec_basic *sta_rec_basic;
 	int buf_len, ret;
 	u8 *buf;
@@ -1264,7 +1264,7 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		u8 bcc_cnt;
 		__le16 bcc_ie_pos;
 	} __packed req = {0};
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 	struct sk_buff *skb;
 	u16 tim_off, tim_len;

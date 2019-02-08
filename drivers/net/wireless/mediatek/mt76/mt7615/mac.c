@@ -13,7 +13,7 @@
 static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 					    u8 idx, bool unicast)
 {
-	struct mt7615_sta *sta;
+	struct mt76x35_sta *sta;
 	struct mt76_wcid *wcid;
 
 	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
@@ -26,7 +26,7 @@ static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 	if (!wcid->sta)
 		return NULL;
 
-	sta = container_of(wcid, struct mt7615_sta, wcid);
+	sta = container_of(wcid, struct mt76x35_sta, wcid);
 	if (!sta->vif)
 		return NULL;
 
@@ -275,7 +275,7 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	u32 val;
 
 	if (vif) {
-		struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+		struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 
 		omac_idx = mvif->omac_idx;
 	}
@@ -456,7 +456,7 @@ int mt7615_tx_prepare_txp(struct mt76_dev *mdev, void *txwi_ptr,
 		txp->flags |= cpu_to_le16(MT_CT_INFO_MGMT_FRAME);
 
 	if (vif) {
-		struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+		struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 
 		txp->bss_idx = mvif->idx;
 	}
@@ -494,7 +494,7 @@ static void mt7615_skb_done(struct mt7615_dev *dev, struct sk_buff *skb,
 	ieee80211_tx_status(mt76_hw(dev), skb);
 }
 
-static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
+static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt76x35_sta *sta,
 			    struct ieee80211_tx_info *info, __le32 *txs_data)
 {
 	struct ieee80211_supported_band *sband;
@@ -599,7 +599,7 @@ out:
 }
 
 static bool mt7615_mac_add_txs_skb(struct mt7615_dev *dev,
-				   struct mt7615_sta *sta, int pid,
+				   struct mt76x35_sta *sta, int pid,
 				   __le32 *txs_data)
 {
 	struct mt76_dev *mdev = &dev->mt76;
@@ -630,7 +630,7 @@ void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 {
 	struct ieee80211_tx_info info = {};
 	struct ieee80211_sta *sta = NULL;
-	struct mt7615_sta *msta = NULL;
+	struct mt76x35_sta *msta = NULL;
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
 	u32 txs;
@@ -654,7 +654,7 @@ void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 	if (!wcid)
 		goto out;
 
-	msta = container_of(wcid, struct mt7615_sta, wcid);
+	msta = container_of(wcid, struct mt76x35_sta, wcid);
 	sta = wcid_to_sta(wcid);
 
 	if (mt7615_mac_add_txs_skb(dev, msta, pid, txs_data))

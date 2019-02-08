@@ -6,7 +6,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
-#include "../mt76.h"
+#include "../mt76x35.h"
 #include "regs.h"
 
 #define MT7615_MAX_INTERFACES		4
@@ -30,26 +30,6 @@
 
 #define MT7615_EEPROM_SIZE		1024
 #define MT7615_TOKEN_SIZE		4095
-
-struct mt7615_vif;
-struct mt7615_sta;
-
-struct mt7615_sta {
-	struct mt76_wcid wcid; /* must be first */
-
-	struct mt7615_vif *vif;
-
-	struct ieee80211_tx_rate rates[8];
-};
-
-struct mt7615_vif {
-	u8 idx;
-	u8 omac_idx;
-	u8 band_idx;
-	u8 wmm_idx;
-
-	struct mt7615_sta sta;
-};
 
 struct mt7615_token_queue {
 	struct sk_buff **skb;
