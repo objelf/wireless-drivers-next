@@ -20,7 +20,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
-#include "../mt76.h"
+#include "../mt76x35.h"
 #include "regs.h"
 
 #define MT7603_MAX_INTERFACES	4
@@ -51,9 +51,6 @@
 #define MT7603_CFEND_RATE_DEFAULT	0x69 /* chip default (24M) */
 #define MT7603_CFEND_RATE_11B		0x03 /* 11B LP, 11M */
 
-struct mt7603_vif;
-struct mt7603_sta;
-
 enum {
 	MT7603_REV_E1 = 0x00,
 	MT7603_REV_E2 = 0x10,
@@ -64,29 +61,6 @@ enum mt7603_bw {
 	MT_BW_20,
 	MT_BW_40,
 	MT_BW_80,
-};
-
-struct mt7603_sta {
-	struct mt76_wcid wcid; /* must be first */
-
-	struct mt7603_vif *vif;
-
-	struct sk_buff_head psq;
-
-	struct ieee80211_tx_rate rates[8];
-	u8 rate_count;
-	u8 n_rates;
-
-	u8 rate_probe;
-	u8 smps;
-
-	u8 ps;
-};
-
-struct mt7603_vif {
-	struct mt7603_sta sta; /* must be first */
-
-	u8 idx;
 };
 
 enum mt7603_reset_cause {
@@ -109,7 +83,7 @@ struct mt7603_dev {
 
 	u8 vif_mask;
 
-	struct mt7603_sta global_sta;
+	struct mt76x35_sta global_sta;
 
 	u32 agc0, agc3;
 	u32 false_cca_ofdm, false_cca_cck;
@@ -228,14 +202,14 @@ void mt7603_wtbl_init(struct mt7603_dev *dev, int idx, int vif,
 		      const u8 *mac_addr);
 void mt7603_wtbl_clear(struct mt7603_dev *dev, int idx);
 void mt7603_wtbl_update_cap(struct mt7603_dev *dev, struct ieee80211_sta *sta);
-void mt7603_wtbl_set_rates(struct mt7603_dev *dev, struct mt7603_sta *sta,
+void mt7603_wtbl_set_rates(struct mt7603_dev *dev, struct mt76x35_sta *sta,
 			   struct ieee80211_tx_rate *probe_rate,
 			   struct ieee80211_tx_rate *rates);
 int mt7603_wtbl_set_key(struct mt7603_dev *dev, int wcid,
 			struct ieee80211_key_conf *key);
-void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
+void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt76x35_sta *sta,
 			bool enabled);
-void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt7603_sta *sta,
+void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt76x35_sta *sta,
 			  bool enabled);
 void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort);
 

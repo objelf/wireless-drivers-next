@@ -48,7 +48,7 @@ mt7603_stop(struct ieee80211_hw *hw)
 static int
 mt7603_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	struct mt7603_vif *mvif = (struct mt7603_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct mt7603_dev *dev = hw->priv;
 	struct mt76_txq *mtxq;
 	u8 bc_addr[ETH_ALEN];
@@ -99,7 +99,7 @@ out:
 static void
 mt7603_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	struct mt7603_vif *mvif = (struct mt7603_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct mt7603_dev *dev = hw->priv;
 	int idx = mvif->sta.wcid.idx;
 
@@ -278,8 +278,8 @@ static void
 mt7603_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *info, u32 changed)
 {
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct mt7603_dev *dev = hw->priv;
-	struct mt7603_vif *mvif = (struct mt7603_vif *)vif->drv_priv;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -321,8 +321,8 @@ mt7603_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	       struct ieee80211_sta *sta)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
-	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
-	struct mt7603_vif *mvif = (struct mt7603_vif *)vif->drv_priv;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	int idx;
 	int ret = 0;
 
@@ -358,7 +358,7 @@ mt7603_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		  struct ieee80211_sta *sta)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
-	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
 
 	spin_lock_bh(&dev->ps_lock);
@@ -383,7 +383,7 @@ void
 mt7603_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
-	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct sk_buff_head list;
 
 	mt76_stop_tx_queues(&dev->mt76, sta, false);
@@ -407,8 +407,8 @@ mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 			       enum ieee80211_frame_release_type reason,
 			       bool more_data)
 {
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct mt7603_dev *dev = hw->priv;
-	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
 	struct sk_buff_head list;
 	struct sk_buff *skb, *tmp;
 
@@ -442,9 +442,9 @@ mt7603_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	       struct ieee80211_key_conf *key)
 {
 	struct mt7603_dev *dev = hw->priv;
-	struct mt7603_vif *mvif = (struct mt7603_vif *)vif->drv_priv;
-	struct mt7603_sta *msta = sta ? (struct mt7603_sta *)sta->drv_priv :
-				  &mvif->sta;
+	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
+	struct mt76x35_sta *msta = sta ? (struct mt76x35_sta *)sta->drv_priv 
+				       : &mvif->sta;
 	struct mt76_wcid *wcid = &msta->wcid;
 	int idx = key->keyidx;
 
@@ -560,7 +560,7 @@ mt7603_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt7603_dev *dev = hw->priv;
 	struct ieee80211_sta *sta = params->sta;
 	struct ieee80211_txq *txq = sta->txq[params->tid];
-	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	u16 tid = params->tid;
 	u16 *ssn = &params->ssn;
 	u8 ba_size = params->buf_size;
@@ -609,9 +609,9 @@ static void
 mt7603_sta_rate_tbl_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
 {
-	struct mt7603_dev *dev = hw->priv;
-	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	struct ieee80211_sta_rates *sta_rates = rcu_dereference(sta->rates);
+	struct mt7603_dev *dev = hw->priv;
 	int i;
 
 	spin_lock_bh(&dev->mt76.lock);
@@ -650,9 +650,9 @@ static void mt7603_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *cont
 	struct mt76_wcid *wcid = &dev->global_sta.wcid;
 
 	if (control->sta) {
-		struct mt7603_sta *msta;
+		struct mt76x35_sta *msta;
 
-		msta = (struct mt7603_sta *)control->sta->drv_priv;
+		msta = (struct mt76x35_sta *)control->sta->drv_priv;
 		wcid = &msta->wcid;
 		/* sw encrypted frames */
 		if (!info->control.hw_key && wcid->hw_key_idx != 0xff &&
@@ -661,9 +661,9 @@ static void mt7603_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *cont
 	}
 
 	if (vif && !control->sta) {
-		struct mt7603_vif *mvif;
+		struct mt76x35_vif *mvif;
 
-		mvif = (struct mt7603_vif *)vif->drv_priv;
+		mvif = (struct mt76x35_vif *)vif->drv_priv;
 		wcid = &mvif->sta.wcid;
 	}
 

@@ -212,7 +212,7 @@ void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
 	mt7603_wtbl_set_skip_tx(dev, idx, false);
 }
 
-void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt7603_sta *sta,
+void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt76x35_sta *sta,
 			  bool enabled)
 {
 	u32 addr = mt7603_wtbl1_addr(sta->wcid.idx);
@@ -224,7 +224,7 @@ void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	sta->smps = enabled;
 }
 
-void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
+void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt76x35_sta *sta,
 			bool enabled)
 {
 	int idx = sta->wcid.idx;
@@ -318,7 +318,7 @@ void mt7603_wtbl_clear(struct mt7603_dev *dev, int idx)
 
 void mt7603_wtbl_update_cap(struct mt7603_dev *dev, struct ieee80211_sta *sta)
 {
-	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
+	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	int idx = msta->wcid.idx;
 	u32 addr;
 	u32 val;
@@ -450,7 +450,7 @@ mt7603_get_rate(struct mt7603_dev *dev, struct ieee80211_supported_band *sband,
 static struct mt76_wcid *
 mt7603_rx_get_wcid(struct mt7603_dev *dev, u8 idx, bool unicast)
 {
-	struct mt7603_sta *sta;
+	struct mt76x35_sta *sta;
 	struct mt76_wcid *wcid;
 
 	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
@@ -463,7 +463,7 @@ mt7603_rx_get_wcid(struct mt7603_dev *dev, u8 idx, bool unicast)
 	if (!wcid->sta)
 		return NULL;
 
-	sta = container_of(wcid, struct mt7603_sta, wcid);
+	sta = container_of(wcid, struct mt76x35_sta, wcid);
 	if (!sta->vif)
 		return NULL;
 
@@ -688,7 +688,7 @@ mt7603_mac_tx_rate_val(struct mt7603_dev *dev,
 	return rateval;
 }
 
-void mt7603_wtbl_set_rates(struct mt7603_dev *dev, struct mt7603_sta *sta,
+void mt7603_wtbl_set_rates(struct mt7603_dev *dev, struct mt76x35_sta *sta,
 			   struct ieee80211_tx_rate *probe_rate,
 			   struct ieee80211_tx_rate *rates)
 {
@@ -843,7 +843,7 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_vif *vif = info->control.vif;
-	struct mt7603_vif *mvif;
+	struct mt76x35_vif *mvif;
 	int wlan_idx;
 	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
 	int tx_count = 8;
@@ -854,14 +854,14 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 	u8 bw;
 
 	if (vif) {
-		mvif = (struct mt7603_vif *)vif->drv_priv;
+		mvif = (struct mt76x35_vif *)vif->drv_priv;
 		vif_idx = mvif->idx;
 		if (vif_idx && q >= &dev->mt76.q_tx[MT_TXQ_BEACON])
 			vif_idx += 0x10;
 	}
 
 	if (sta) {
-		struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
+		struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 
 		tx_count = msta->rate_count;
 	}
@@ -956,7 +956,8 @@ int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  u32 *tx_info)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
-	struct mt7603_sta *msta = container_of(wcid, struct mt7603_sta, wcid);
+	struct mt76x35_sta *msta = container_of(wcid, struct mt76x35_sta,
+						wcid);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	int pid;
@@ -965,7 +966,7 @@ int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		wcid = &dev->global_sta.wcid;
 
 	if (sta) {
-		msta = (struct mt7603_sta *)sta->drv_priv;
+		msta = (struct mt76x35_sta *)sta->drv_priv;
 
 		if ((info->flags & (IEEE80211_TX_CTL_NO_PS_BUFFER |
 				    IEEE80211_TX_CTL_CLEAR_PS_FILT)) ||
@@ -989,7 +990,7 @@ int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 }
 
 static bool
-mt7603_fill_txs(struct mt7603_dev *dev, struct mt7603_sta *sta,
+mt7603_fill_txs(struct mt7603_dev *dev, struct mt76x35_sta *sta,
 		struct ieee80211_tx_info *info, __le32 *txs_data)
 {
 	struct ieee80211_supported_band *sband;
@@ -1101,8 +1102,8 @@ out:
 }
 
 static bool
-mt7603_mac_add_txs_skb(struct mt7603_dev *dev, struct mt7603_sta *sta, int pid,
-		       __le32 *txs_data)
+mt7603_mac_add_txs_skb(struct mt7603_dev *dev, struct mt76x35_sta *sta,
+		       int pid, __le32 *txs_data)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	struct sk_buff_head list;
@@ -1142,7 +1143,7 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 {
 	struct ieee80211_tx_info info = {};
 	struct ieee80211_sta *sta = NULL;
-	struct mt7603_sta *msta = NULL;
+	struct mt76x35_sta *msta = NULL;
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
 	u32 txs;
@@ -1166,7 +1167,7 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 	if (!wcid)
 		goto out;
 
-	msta = container_of(wcid, struct mt7603_sta, wcid);
+	msta = container_of(wcid, struct mt76x35_sta, wcid);
 	sta = wcid_to_sta(wcid);
 
 	if (mt7603_mac_add_txs_skb(dev, msta, pid, txs_data))

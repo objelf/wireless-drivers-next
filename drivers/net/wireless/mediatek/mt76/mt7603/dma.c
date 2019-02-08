@@ -42,7 +42,7 @@ static void
 mt7603_rx_loopback_skb(struct mt7603_dev *dev, struct sk_buff *skb)
 {
 	__le32 *txd = (__le32 *)skb->data;
-	struct mt7603_sta *msta;
+	struct mt76x35_sta *msta;
 	struct mt76_wcid *wcid;
 	int idx;
 	u32 val;
@@ -61,7 +61,7 @@ mt7603_rx_loopback_skb(struct mt7603_dev *dev, struct sk_buff *skb)
 	if (!wcid)
 		goto free;
 
-	msta = container_of(wcid, struct mt7603_sta, wcid);
+	msta = container_of(wcid, struct mt76x35_sta, wcid);
 	val = le32_to_cpu(txd[0]);
 	skb_set_queue_mapping(skb, FIELD_GET(MT_TXD0_Q_IDX, val));
 
