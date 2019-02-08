@@ -16,7 +16,7 @@ static const struct pci_device_id mt7615_pci_device_table[] = {
 	{ },
 };
 
-u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr)
+u32 mt7615_reg_map(struct mt76x35_dev *dev, u32 addr)
 {
 	u32 base = addr & MT_MCU_PCIE_REMAP_2_BASE;
 	u32 offset = addr & MT_MCU_PCIE_REMAP_2_OFFSET;
@@ -28,12 +28,12 @@ u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr)
 
 void mt7615_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 
 	mt7615_irq_enable(dev, MT_INT_RX_DONE(q));
 }
 
-void mt7615_set_irq_mask(struct mt7615_dev *dev, u32 clear, u32 set)
+void mt7615_set_irq_mask(struct mt76x35_dev *dev, u32 clear, u32 set)
 {
 	unsigned long flags;
 
@@ -46,7 +46,7 @@ void mt7615_set_irq_mask(struct mt7615_dev *dev, u32 clear, u32 set)
 
 irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 {
-	struct mt7615_dev *dev = dev_instance;
+	struct mt76x35_dev *dev = dev_instance;
 	u32 intr;
 
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
@@ -90,7 +90,7 @@ static int mt7615_pci_probe(struct pci_dev *pdev,
 		.sta_add = mt7615_sta_add,
 		.sta_remove = mt7615_sta_remove,
 	};
-	struct mt7615_dev *dev;
+	struct mt76x35_dev *dev;
 	struct mt76_dev *mdev;
 	int ret;
 
@@ -113,7 +113,7 @@ static int mt7615_pci_probe(struct pci_dev *pdev,
 	if (!mdev)
 		return -ENOMEM;
 
-	dev = container_of(mdev, struct mt7615_dev, mt76);
+	dev = container_of(mdev, struct mt76x35_dev, mt76);
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
 
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
@@ -138,7 +138,7 @@ error:
 static void mt7615_pci_remove(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 
 	mt7615_unregister_device(dev);
 	ieee80211_free_hw(mt76_hw(dev));

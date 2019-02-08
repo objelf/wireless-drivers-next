@@ -161,8 +161,9 @@ struct bss_info {
 struct bss_info_tag_handler {
 	u32 tag;
 	u32 len;
-	void (*handler)(struct mt7615_dev *dev,
-			struct bss_info *bss_info, struct sk_buff *skb);
+	void (*handler)(struct mt76x35_dev *dev,
+			struct bss_info *bss_info,
+			struct sk_buff *skb);
 };
 
 struct bss_info_omac {

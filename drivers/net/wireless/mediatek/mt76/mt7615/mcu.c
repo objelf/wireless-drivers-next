@@ -48,8 +48,9 @@ struct mt7615_fw_trailer {
 #define FW_START_OVERRIDE		BIT(0)
 #define FW_START_WORKING_PDA_CR4	BIT(2)
 
-static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
-				 int cmd, int query, int dest, int *wait_seq)
+static int
+__mt7615_mcu_msg_send(struct mt76x35_dev *dev, struct sk_buff *skb,
+		      int cmd, int query, int dest, int *wait_seq)
 {
 	struct mt7615_mcu_txd *mcu_txd;
 	u8 seq, q_idx, pkt_fmt;
@@ -117,9 +118,10 @@ static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 	return mt76_tx_queue_skb_raw(dev, qid, skb, 0);
 }
 
-static int mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
-			       int cmd, int query, int dest,
-			       struct sk_buff **skb_ret)
+static int
+mt7615_mcu_msg_send(struct mt76x35_dev *dev, struct sk_buff *skb,
+		    int cmd, int query, int dest,
+		    struct sk_buff **skb_ret)
 {
 	unsigned long expires = jiffies + 10 * HZ;
 	struct mt7615_mcu_rxd *rxd;
@@ -165,8 +167,9 @@ out:
 	return ret;
 }
 
-static int mt7615_mcu_init_download(struct mt7615_dev *dev, u32 addr,
-				    u32 len, u32 mode)
+static int
+mt7615_mcu_init_download(struct mt76x35_dev *dev, u32 addr,
+			 u32 len, u32 mode)
 {
 	struct {
 		__le32 addr;
@@ -183,8 +186,9 @@ static int mt7615_mcu_init_download(struct mt7615_dev *dev, u32 addr,
 				   MCU_Q_NA, MCU_S2D_H2N, NULL);
 }
 
-static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
-				    int len)
+static int
+mt7615_mcu_send_firmware(struct mt76x35_dev *dev, const void *data,
+			 int len)
 {
 	struct sk_buff *skb;
 	int ret = 0;
@@ -209,7 +213,7 @@ static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
 	return ret;
 }
 
-static int mt7615_mcu_start_firmware(struct mt7615_dev *dev, u32 addr,
+static int mt7615_mcu_start_firmware(struct mt76x35_dev *dev, u32 addr,
 				     u32 option)
 {
 	struct {
@@ -225,7 +229,7 @@ static int mt7615_mcu_start_firmware(struct mt7615_dev *dev, u32 addr,
 				   MCU_Q_NA, MCU_S2D_H2N, NULL);
 }
 
-static int mt7615_mcu_restart(struct mt7615_dev *dev)
+static int mt7615_mcu_restart(struct mt76x35_dev *dev)
 {
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(NULL, 0);
 
@@ -233,7 +237,7 @@ static int mt7615_mcu_restart(struct mt7615_dev *dev)
 				   MCU_Q_NA, MCU_S2D_H2N, NULL);
 }
 
-static int mt7615_mcu_patch_sem_ctrl(struct mt7615_dev *dev, bool get)
+static int mt7615_mcu_patch_sem_ctrl(struct mt76x35_dev *dev, bool get)
 {
 	struct {
 		__le32 operation;
@@ -262,7 +266,7 @@ out:
 	return ret;
 }
 
-static int mt7615_mcu_start_patch(struct mt7615_dev *dev)
+static int mt7615_mcu_start_patch(struct mt76x35_dev *dev)
 {
 	struct {
 		u8 check_crc;
@@ -276,7 +280,7 @@ static int mt7615_mcu_start_patch(struct mt7615_dev *dev)
 				   MCU_Q_NA, MCU_S2D_H2N, NULL);
 }
 
-static int mt7615_driver_own(struct mt7615_dev *dev)
+static int mt7615_driver_own(struct mt76x35_dev *dev)
 {
 	mt76_wr(dev, MT_CFG_LPCR_HOST, MT_CFG_LPCR_HOST_DRV_OWN);
 	if (!mt76_poll_msec(dev, MT_CFG_LPCR_HOST,
@@ -288,7 +292,7 @@ static int mt7615_driver_own(struct mt7615_dev *dev)
 	return 0;
 }
 
-static int mt7615_load_patch(struct mt7615_dev *dev)
+static int mt7615_load_patch(struct mt76x35_dev *dev)
 {
 	const struct firmware *fw;
 	const struct mt7615_patch_hdr *hdr;
@@ -370,7 +374,7 @@ static u32 gen_dl_mode(u8 feature_set, bool is_cr4)
 	return ret;
 }
 
-static int mt7615_load_ram(struct mt7615_dev *dev)
+static int mt7615_load_ram(struct mt76x35_dev *dev)
 {
 	const struct firmware *fw;
 	const struct mt7615_fw_trailer *hdr;
@@ -475,7 +479,7 @@ out:
 	return ret;
 }
 
-static int mt7615_load_firmware(struct mt7615_dev *dev)
+static int mt7615_load_firmware(struct mt76x35_dev *dev)
 {
 	int ret;
 	u32 val;
@@ -507,7 +511,7 @@ static int mt7615_load_firmware(struct mt7615_dev *dev)
 	return 0;
 }
 
-int mt7615_mcu_init(struct mt7615_dev *dev)
+int mt7615_mcu_init(struct mt76x35_dev *dev)
 {
 	int ret;
 
@@ -518,14 +522,14 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 	return mt7615_load_firmware(dev);
 }
 
-void mt7615_mcu_exit(struct mt7615_dev *dev)
+void mt7615_mcu_exit(struct mt76x35_dev *dev)
 {
 	mt7615_mcu_restart(dev);
 	mt76_wr(dev, MT_CFG_LPCR_HOST, MT_CFG_LPCR_HOST_FW_OWN);
 	skb_queue_purge(&dev->mt76.mmio.mcu.res_q);
 }
 
-int mt7615_mcu_set_eeprom(struct mt7615_dev *dev)
+int mt7615_mcu_set_eeprom(struct mt76x35_dev *dev)
 {
 	struct req_data {
 		u8 val;
@@ -557,7 +561,7 @@ int mt7615_mcu_set_eeprom(struct mt7615_dev *dev)
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 
-int mt7615_mcu_init_mac(struct mt7615_dev *dev)
+int mt7615_mcu_init_mac(struct mt76x35_dev *dev)
 {
 	struct {
 		u8 enable;
@@ -573,7 +577,7 @@ int mt7615_mcu_init_mac(struct mt7615_dev *dev)
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 
-int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val)
+int mt7615_mcu_set_rts_thresh(struct mt76x35_dev *dev, u32 val)
 {
 	struct {
 		u8 prot_idx;
@@ -593,7 +597,7 @@ int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val)
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 
-int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter)
+int mt7615_mcu_ctrl_pm_state(struct mt76x35_dev *dev, int enter)
 {
 #define ENTER_PM_STATE	1
 #define EXIT_PM_STATE	2
@@ -624,7 +628,7 @@ int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter)
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 
-static int __mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
+static int __mt7615_mcu_set_dev_info(struct mt76x35_dev *dev,
 				     struct dev_info *dev_info)
 {
 	struct req_hdr {
@@ -672,8 +676,8 @@ static int __mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 
-int mt7615_mcu_set_dev_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-			    int en)
+int mt7615_mcu_set_dev_info(struct mt76x35_dev *dev,
+			    struct ieee80211_vif *vif, int en)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct dev_info dev_info = {0};
@@ -687,9 +691,10 @@ int mt7615_mcu_set_dev_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	return __mt7615_mcu_set_dev_info(dev, &dev_info);
 }
 
-static void bss_info_omac_handler (struct mt7615_dev *dev,
-				   struct bss_info *bss_info,
-				   struct sk_buff *skb)
+static void
+bss_info_omac_handler(struct mt76x35_dev *dev,
+		      struct bss_info *bss_info,
+		      struct sk_buff *skb)
 {
 	struct bss_info_omac tlv = {0};
 
@@ -704,9 +709,10 @@ static void bss_info_omac_handler (struct mt7615_dev *dev,
 	memcpy(skb_put(skb, sizeof(tlv)), &tlv, sizeof(tlv));
 }
 
-static void bss_info_basic_handler (struct mt7615_dev *dev,
-				    struct bss_info *bss_info,
-				    struct sk_buff *skb)
+static void
+bss_info_basic_handler(struct mt76x35_dev *dev,
+		       struct bss_info *bss_info,
+		       struct sk_buff *skb)
 {
 	struct bss_info_basic tlv = {0};
 
@@ -723,9 +729,10 @@ static void bss_info_basic_handler (struct mt7615_dev *dev,
 	memcpy(skb_put(skb, sizeof(tlv)), &tlv, sizeof(tlv));
 }
 
-static void bss_info_ext_bss_handler (struct mt7615_dev *dev,
-				      struct bss_info *bss_info,
-				      struct sk_buff *skb)
+static void
+bss_info_ext_bss_handler(struct mt76x35_dev *dev,
+			 struct bss_info *bss_info,
+			 struct sk_buff *skb)
 {
 /* SIFS 20us + 512 byte beacon tranmitted by 1Mbps (3906us) */
 #define BCN_TX_ESTIMATE_TIME (4096 + 20)
@@ -759,7 +766,7 @@ static struct bss_info_tag_handler bss_info_tag_handler[] = {
 	{BSS_INFO_MAX_NUM, 0, NULL},
 };
 
-static int __mt7615_mcu_set_bss_info(struct mt7615_dev *dev,
+static int __mt7615_mcu_set_bss_info(struct mt76x35_dev *dev,
 				     struct bss_info *bss_info)
 {
 	struct req_hdr {
@@ -820,8 +827,8 @@ static void bss_info_convert_vif_type(enum nl80211_iftype type,
 	};
 }
 
-int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-			    int en)
+int mt7615_mcu_set_bss_info(struct mt76x35_dev *dev,
+			    struct ieee80211_vif *vif, int en)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct bss_info bss_info = {0};
@@ -874,7 +881,7 @@ int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	return __mt7615_mcu_set_bss_info(dev, &bss_info);
 }
 
-static int __mt7615_mcu_set_wtbl(struct mt7615_dev *dev, int wlan_idx,
+static int __mt7615_mcu_set_wtbl(struct mt76x35_dev *dev, int wlan_idx,
 				 int operation, u8 *buf, int buf_len)
 {
 	struct req_hdr {
@@ -914,7 +921,7 @@ static int __mt7615_mcu_set_wtbl(struct mt7615_dev *dev, int wlan_idx,
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 
-int mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif)
+int mt7615_mcu_add_wtbl_bmc(struct mt76x35_dev *dev, struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 	struct wtbl_generic *wtbl_generic;
@@ -948,7 +955,7 @@ int mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 	return ret;
 }
 
-int mt7615_mcu_del_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif)
+int mt7615_mcu_del_wtbl_bmc(struct mt76x35_dev *dev, struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
 
@@ -956,7 +963,7 @@ int mt7615_mcu_del_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 				     WTBL_RESET_AND_SET, NULL, 0);
 }
 
-int mt7615_mcu_add_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_add_wtbl(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
@@ -1026,7 +1033,7 @@ int mt7615_mcu_add_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	return ret;
 }
 
-int mt7615_mcu_del_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_del_wtbl(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta)
 {
 	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
@@ -1035,12 +1042,12 @@ int mt7615_mcu_del_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 				     WTBL_RESET_AND_SET, NULL, 0);
 }
 
-int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev)
+int mt7615_mcu_del_wtbl_all(struct mt76x35_dev *dev)
 {
 	return __mt7615_mcu_set_wtbl(dev, 0, WTBL_RESET_ALL, NULL, 0);
 }
 
-static int __mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, int bss_idx,
+static int __mt7615_mcu_set_sta_rec(struct mt76x35_dev *dev, int bss_idx,
 				    int wlan_idx, int muar_idx, u8 *buf,
 				    int buf_len)
 {
@@ -1085,7 +1092,7 @@ static int __mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, int bss_idx,
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 
-int mt7615_mcu_add_sta_rec_bmc(struct mt7615_dev *dev,
+int mt7615_mcu_add_sta_rec_bmc(struct mt76x35_dev *dev,
 			       struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
@@ -1114,7 +1121,7 @@ int mt7615_mcu_add_sta_rec_bmc(struct mt7615_dev *dev,
 	return ret;
 }
 
-int mt7615_mcu_del_sta_rec_bmc(struct mt7615_dev *dev,
+int mt7615_mcu_del_sta_rec_bmc(struct mt76x35_dev *dev,
 			       struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
@@ -1159,7 +1166,8 @@ static void sta_rec_convert_vif_type(enum nl80211_iftype type, u32 *conn_type)
 	};
 }
 
-int mt7615_mcu_add_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_add_sta_rec(struct mt76x35_dev *dev,
+			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
@@ -1212,7 +1220,7 @@ int mt7615_mcu_add_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	return ret;
 }
 
-int mt7615_mcu_del_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_del_sta_rec(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
@@ -1245,7 +1253,7 @@ int mt7615_mcu_del_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	return ret;
 }
 
-int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_set_bcn(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 		       int en)
 {
 	struct req {
@@ -1300,7 +1308,7 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 
-int mt7615_mcu_set_channel(struct mt7615_dev *dev)
+int mt7615_mcu_set_channel(struct mt76x35_dev *dev)
 {
 	struct cfg80211_chan_def *chdef = &dev->mt76.chandef;
 	struct {

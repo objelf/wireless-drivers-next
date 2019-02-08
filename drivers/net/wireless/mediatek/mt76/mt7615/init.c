@@ -9,9 +9,9 @@
 #include "mt7615.h"
 #include "mac.h"
 
-static int mt7615_alloc_token(struct mt7615_dev *dev)
+static int mt7615_alloc_token(struct mt76x35_dev *dev)
 {
-	struct mt7615_token_queue *q = &dev->tkq;
+	struct mt76x35_token_queue *q = &dev->tkq;
 	int i, size;
 
 	spin_lock_init(&dev->token_lock);
@@ -38,14 +38,14 @@ static int mt7615_alloc_token(struct mt7615_dev *dev)
 	return 0;
 }
 
-static void mt7615_phy_init(struct mt7615_dev *dev)
+static void mt7615_phy_init(struct mt76x35_dev *dev)
 {
 	/* disable band 0 rf low power beacon mode */
 	mt76_rmw(dev, MT_WF_PHY_WF2_RFCTRL0, MT_WF_PHY_WF2_RFCTRL0_LPBCN_EN,
 		 MT_WF_PHY_WF2_RFCTRL0_LPBCN_EN);
 }
 
-static void mt7615_mac_init(struct mt7615_dev *dev)
+static void mt7615_mac_init(struct mt76x35_dev *dev)
 {
 	/* enable band 0 clk */
 	mt76_rmw(dev, MT_CFG_CCR,
@@ -79,7 +79,7 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 			   &dev->mt76.global_wcid);
 }
 
-static int mt7615_init_hardware(struct mt7615_dev *dev)
+static int mt7615_init_hardware(struct mt76x35_dev *dev)
 {
 	int ret;
 
@@ -159,7 +159,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
-int mt7615_register_device(struct mt7615_dev *dev)
+int mt7615_register_device(struct mt76x35_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct wiphy *wiphy = hw->wiphy;
@@ -192,7 +192,7 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	return 0;
 }
 
-void mt7615_unregister_device(struct mt7615_dev *dev)
+void mt7615_unregister_device(struct mt76x35_dev *dev)
 {
 	mt76_unregister_device(&dev->mt76);
 	mt7615_mcu_exit(dev);

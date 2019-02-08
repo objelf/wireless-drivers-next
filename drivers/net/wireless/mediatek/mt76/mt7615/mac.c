@@ -10,8 +10,9 @@
 #include "mt7615.h"
 #include "mac.h"
 
-static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
-					    u8 idx, bool unicast)
+static struct
+mt76_wcid *mt7615_rx_get_wcid(struct mt76x35_dev *dev,
+			      u8 idx, bool unicast)
 {
 	struct mt76x35_sta *sta;
 	struct mt76_wcid *wcid;
@@ -33,7 +34,7 @@ static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 	return &sta->vif->sta.wcid;
 }
 
-static int mt7615_get_rate(struct mt7615_dev *dev,
+static int mt7615_get_rate(struct mt76x35_dev *dev,
 			   struct ieee80211_supported_band *sband,
 			   int idx, bool cck)
 {
@@ -81,7 +82,7 @@ static void mt7615_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id)
 	status->flag &= ~RX_FLAG_IV_STRIPPED;
 }
 
-int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
+int mt7615_mac_fill_rx(struct mt76x35_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct ieee80211_supported_band *sband;
@@ -192,7 +193,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			  u32 *tx_info)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	int pid = 0;
@@ -208,7 +209,7 @@ void mt7615_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 {
 }
 
-static u16 mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
+static u16 mt7615_mac_tx_rate_val(struct mt76x35_dev *dev,
 				  const struct ieee80211_tx_rate *rate,
 				  bool stbc, u8 *bw)
 {
@@ -260,7 +261,7 @@ static u16 mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 	return rateval;
 }
 
-int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
+int mt7615_mac_write_txwi(struct mt76x35_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta, int pid,
 			  struct ieee80211_key_conf *key)
@@ -367,9 +368,9 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	return 0;
 }
 
-static int mt7615_token_enqueue(struct mt7615_dev *dev, struct sk_buff *skb)
+static int mt7615_token_enqueue(struct mt76x35_dev *dev, struct sk_buff *skb)
 {
-	struct mt7615_token_queue *q = &dev->tkq;
+	struct mt76x35_token_queue *q = &dev->tkq;
 	u16 token;
 
 	token = q->id[q->head];
@@ -386,9 +387,10 @@ static int mt7615_token_enqueue(struct mt7615_dev *dev, struct sk_buff *skb)
 	return token;
 }
 
-static struct sk_buff *mt7615_token_dequeue(struct mt7615_dev *dev, u16 token)
+static struct sk_buff *
+mt7615_token_dequeue(struct mt76x35_dev *dev, u16 token)
 {
-	struct mt7615_token_queue *q = &dev->tkq;
+	struct mt76x35_token_queue *q = &dev->tkq;
 	struct sk_buff *skb;
 
 	if (!q->queued)
@@ -408,7 +410,7 @@ static struct sk_buff *mt7615_token_dequeue(struct mt7615_dev *dev, u16 token)
 int mt7615_tx_prepare_txp(struct mt76_dev *mdev, void *txwi_ptr,
 			  struct sk_buff *skb, struct mt76_queue_buf *buf)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
@@ -479,7 +481,7 @@ unmap:
 	return res;
 }
 
-static void mt7615_skb_done(struct mt7615_dev *dev, struct sk_buff *skb,
+static void mt7615_skb_done(struct mt76x35_dev *dev, struct sk_buff *skb,
 			    u8 flags)
 {
 	struct mt76_tx_cb *cb = mt76_tx_skb_cb(skb);
@@ -494,7 +496,7 @@ static void mt7615_skb_done(struct mt7615_dev *dev, struct sk_buff *skb,
 	ieee80211_tx_status(mt76_hw(dev), skb);
 }
 
-static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt76x35_sta *sta,
+static bool mt7615_fill_txs(struct mt76x35_dev *dev, struct mt76x35_sta *sta,
 			    struct ieee80211_tx_info *info, __le32 *txs_data)
 {
 	struct ieee80211_supported_band *sband;
@@ -598,7 +600,7 @@ out:
 	return true;
 }
 
-static bool mt7615_mac_add_txs_skb(struct mt7615_dev *dev,
+static bool mt7615_mac_add_txs_skb(struct mt76x35_dev *dev,
 				   struct mt76x35_sta *sta, int pid,
 				   __le32 *txs_data)
 {
@@ -626,7 +628,7 @@ static bool mt7615_mac_add_txs_skb(struct mt7615_dev *dev,
 	return !!skb;
 }
 
-void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
+void mt7615_mac_add_txs(struct mt76x35_dev *dev, void *data)
 {
 	struct ieee80211_tx_info info = {};
 	struct ieee80211_sta *sta = NULL;
@@ -673,7 +675,7 @@ out:
 void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			    struct mt76_queue_entry *e, bool flush)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct sk_buff *skb = e->skb;
 	bool free = true;
 
@@ -692,7 +694,7 @@ void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 		ieee80211_free_txskb(mdev->hw, skb);
 }
 
-void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
+void mt7615_mac_tx_free(struct mt76x35_dev *dev, struct sk_buff *skb)
 {
 	struct mt7615_tx_free *free;
 	u8 i, cnt;

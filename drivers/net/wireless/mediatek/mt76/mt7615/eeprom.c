@@ -7,7 +7,7 @@
 #include "mt7615.h"
 #include "eeprom.h"
 
-static int mt7615_efuse_read(struct mt7615_dev *dev, u32 base,
+static int mt7615_efuse_read(struct mt76x35_dev *dev, u32 base,
 			     u16 addr, u8 *data)
 {
 	u32 val;
@@ -39,7 +39,7 @@ static int mt7615_efuse_read(struct mt7615_dev *dev, u32 base,
 	return 0;
 }
 
-static int mt7615_efuse_init(struct mt7615_dev *dev)
+static int mt7615_efuse_init(struct mt76x35_dev *dev)
 {
 	u32 base = mt7615_reg_map(dev, MT_EFUSE_BASE);
 	int len = MT7615_EEPROM_SIZE;
@@ -64,7 +64,7 @@ static int mt7615_efuse_init(struct mt7615_dev *dev)
 	return 0;
 }
 
-static int mt7615_eeprom_load(struct mt7615_dev *dev)
+static int mt7615_eeprom_load(struct mt76x35_dev *dev)
 {
 	int ret;
 
@@ -75,7 +75,7 @@ static int mt7615_eeprom_load(struct mt7615_dev *dev)
 	return mt7615_efuse_init(dev);
 }
 
-int mt7615_eeprom_init(struct mt7615_dev *dev)
+int mt7615_eeprom_init(struct mt76x35_dev *dev)
 {
 	int ret;
 

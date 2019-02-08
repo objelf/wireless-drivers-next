@@ -31,29 +31,6 @@
 #define MT7615_EEPROM_SIZE		1024
 #define MT7615_TOKEN_SIZE		4095
 
-struct mt7615_token_queue {
-	struct sk_buff **skb;
-	int *id;
-
-	int ntoken;
-	int queued;
-	int used;
-	u16 head;
-	u16 tail;
-};
-
-struct mt7615_dev {
-	struct mt76_dev mt76; /* must be first */
-	u32 vif_mask;
-	u32 omac_mask;
-
-	struct tasklet_struct tx_tasklet;
-
-	 /* token id lock */
-	spinlock_t token_lock;
-	struct mt7615_token_queue tkq;
-};
-
 enum {
 	HW_BSSID_0 = 0x0,
 	HW_BSSID_1,
@@ -82,63 +59,63 @@ enum {
 extern const struct ieee80211_ops mt7615_ops;
 extern struct pci_driver mt7615_pci_driver;
 
-u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
+u32 mt7615_reg_map(struct mt76x35_dev *dev, u32 addr);
 
-int mt7615_register_device(struct mt7615_dev *dev);
-void mt7615_unregister_device(struct mt7615_dev *dev);
-int mt7615_eeprom_init(struct mt7615_dev *dev);
-int mt7615_dma_init(struct mt7615_dev *dev);
-void mt7615_dma_cleanup(struct mt7615_dev *dev);
-void mt7615_dma_start(struct mt7615_dev *dev);
-int mt7615_mcu_init(struct mt7615_dev *dev);
-int mt7615_mcu_set_dev_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_register_device(struct mt76x35_dev *dev);
+void mt7615_unregister_device(struct mt76x35_dev *dev);
+int mt7615_eeprom_init(struct mt76x35_dev *dev);
+int mt7615_dma_init(struct mt76x35_dev *dev);
+void mt7615_dma_cleanup(struct mt76x35_dev *dev);
+void mt7615_dma_start(struct mt76x35_dev *dev);
+int mt7615_mcu_init(struct mt76x35_dev *dev);
+int mt7615_mcu_set_dev_info(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 			    int en);
-int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_set_bss_info(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 			    int en);
-int mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif);
-int mt7615_mcu_del_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif);
-int mt7615_mcu_add_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_add_wtbl_bmc(struct mt76x35_dev *dev, struct ieee80211_vif *vif);
+int mt7615_mcu_del_wtbl_bmc(struct mt76x35_dev *dev, struct ieee80211_vif *vif);
+int mt7615_mcu_add_wtbl(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
-int mt7615_mcu_del_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_del_wtbl(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
-int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
-int mt7615_mcu_add_sta_rec_bmc(struct mt7615_dev *dev,
+int mt7615_mcu_del_wtbl_all(struct mt76x35_dev *dev);
+int mt7615_mcu_add_sta_rec_bmc(struct mt76x35_dev *dev,
 			       struct ieee80211_vif *vif);
-int mt7615_mcu_del_sta_rec_bmc(struct mt7615_dev *dev,
+int mt7615_mcu_del_sta_rec_bmc(struct mt76x35_dev *dev,
 			       struct ieee80211_vif *vif);
-int mt7615_mcu_add_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_add_sta_rec(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
-int mt7615_mcu_del_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_del_sta_rec(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
-int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_set_bcn(struct mt76x35_dev *dev, struct ieee80211_vif *vif,
 		       int en);
-int mt7615_mcu_set_channel(struct mt7615_dev *dev);
+int mt7615_mcu_set_channel(struct mt76x35_dev *dev);
 
-void mt7615_set_irq_mask(struct mt7615_dev *dev, u32 clear, u32 set);
+void mt7615_set_irq_mask(struct mt76x35_dev *dev, u32 clear, u32 set);
 
-static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
+static inline void mt7615_irq_enable(struct mt76x35_dev *dev, u32 mask)
 {
 	mt7615_set_irq_mask(dev, 0, mask);
 }
 
-static inline void mt7615_irq_disable(struct mt7615_dev *dev, u32 mask)
+static inline void mt7615_irq_disable(struct mt76x35_dev *dev, u32 mask)
 {
 	mt7615_set_irq_mask(dev, mask, 0);
 }
 
-int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
+int mt7615_mac_write_txwi(struct mt76x35_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta, int pid,
 			  struct ieee80211_key_conf *key);
-int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb);
-void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data);
-void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb);
+int mt7615_mac_fill_rx(struct mt76x35_dev *dev, struct sk_buff *skb);
+void mt7615_mac_add_txs(struct mt76x35_dev *dev, void *data);
+void mt7615_mac_tx_free(struct mt76x35_dev *dev, struct sk_buff *skb);
 
-int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
-int mt7615_mcu_init_mac(struct mt7615_dev *dev);
-int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val);
-int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter);
-void mt7615_mcu_exit(struct mt7615_dev *dev);
+int mt7615_mcu_set_eeprom(struct mt76x35_dev *dev);
+int mt7615_mcu_init_mac(struct mt76x35_dev *dev);
+int mt7615_mcu_set_rts_thresh(struct mt76x35_dev *dev, u32 val);
+int mt7615_mcu_ctrl_pm_state(struct mt76x35_dev *dev, int enter);
+void mt7615_mcu_exit(struct mt76x35_dev *dev);
 
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  struct sk_buff *skb, struct mt76_queue *q,

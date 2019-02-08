@@ -10,7 +10,7 @@
 #include "mac.h"
 
 static int
-mt7615_init_tx_queue(struct mt7615_dev *dev, struct mt76_queue *q,
+mt7615_init_tx_queue(struct mt76x35_dev *dev, struct mt76_queue *q,
 		     int n_desc)
 {
 	int idx = q - dev->mt76.q_tx;
@@ -32,7 +32,7 @@ mt7615_init_tx_queue(struct mt7615_dev *dev, struct mt76_queue *q,
 void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	__le32 *rxd = (__le32 *)skb->data;
 	__le32 *end = (__le32 *)&skb->data[skb->len];
 	enum rx_pkt_type type;
@@ -63,7 +63,7 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	}
 }
 
-static int mt7615_init_rx_queue(struct mt7615_dev *dev, struct mt76_queue *q,
+static int mt7615_init_rx_queue(struct mt76x35_dev *dev, struct mt76_queue *q,
 				int idx, int n_desc, int bufsize)
 {
 	int ret;
@@ -83,7 +83,7 @@ static int mt7615_init_rx_queue(struct mt7615_dev *dev, struct mt76_queue *q,
 
 static void mt7615_tx_tasklet(unsigned long data)
 {
-	struct mt7615_dev *dev = (struct mt7615_dev *)data;
+	struct mt76x35_dev *dev = (struct mt76x35_dev *)data;
 	int i;
 
 	for (i = MT7615_TXQ_MCU; i >= 0; i--)
@@ -92,7 +92,7 @@ static void mt7615_tx_tasklet(unsigned long data)
 	mt7615_irq_enable(dev, MT_INT_TX_DONE_ALL);
 }
 
-int mt7615_dma_init(struct mt7615_dev *dev)
+int mt7615_dma_init(struct mt76x35_dev *dev)
 {
 	int ret;
 
@@ -157,7 +157,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	return mt76_init_queues(dev);
 }
 
-void mt7615_dma_cleanup(struct mt7615_dev *dev)
+void mt7615_dma_cleanup(struct mt76x35_dev *dev)
 {
 	mt76_clear(dev, MT_WPDMA_GLO_CFG,
 		   MT_WPDMA_GLO_CFG_TX_DMA_EN |
@@ -167,7 +167,7 @@ void mt7615_dma_cleanup(struct mt7615_dev *dev)
 	mt76_dma_cleanup(&dev->mt76);
 }
 
-static bool wait_for_wpdma(struct mt7615_dev *dev)
+static bool wait_for_wpdma(struct mt76x35_dev *dev)
 {
 	return mt76_poll(dev, MT_WPDMA_GLO_CFG,
 			 MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
@@ -175,7 +175,7 @@ static bool wait_for_wpdma(struct mt7615_dev *dev)
 			 0, 1000);
 }
 
-void mt7615_dma_start(struct mt7615_dev *dev)
+void mt7615_dma_start(struct mt76x35_dev *dev)
 {
 	wait_for_wpdma(dev);
 

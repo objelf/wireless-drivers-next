@@ -13,7 +13,7 @@
 
 static int mt7615_start(struct ieee80211_hw *hw)
 {
-	struct mt7615_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
@@ -22,12 +22,14 @@ static int mt7615_start(struct ieee80211_hw *hw)
 
 static void mt7615_stop(struct ieee80211_hw *hw)
 {
-	struct mt7615_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 }
 
-static void mt7615_txq_init(struct mt7615_dev *dev, struct ieee80211_txq *txq)
+static void
+mt7615_txq_init(struct mt76x35_dev *dev,
+		struct ieee80211_txq *txq)
 {
 	struct mt76_txq *mtxq;
 
@@ -84,7 +86,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
-	struct mt7615_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	int idx, ret = 0;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -127,7 +129,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif)
 {
 	struct mt76x35_vif *mvif = (struct mt76x35_vif *)vif->drv_priv;
-	struct mt7615_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	int idx = mvif->sta.wcid.idx;
 
 	/* TODO: disable beacon for the bss */
@@ -143,7 +145,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&dev->mt76.mutex);
 }
 
-static int mt7615_set_channel(struct mt7615_dev *dev,
+static int mt7615_set_channel(struct mt76x35_dev *dev,
 			      struct cfg80211_chan_def *def)
 {
 	struct mt76_queue *q;
@@ -169,7 +171,7 @@ static int mt7615_set_channel(struct mt7615_dev *dev,
 
 static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct mt7615_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	int ret = 0;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -200,7 +202,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_bss_conf *info,
 				    u32 changed)
 {
-	struct mt7615_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -232,7 +234,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 int mt7615_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 	struct mt76x35_sta *msta = (struct mt76x35_sta *)sta->drv_priv;
 	int idx;
 
@@ -252,7 +254,7 @@ int mt7615_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 void mt7615_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76x35_dev *dev = container_of(mdev, struct mt76x35_dev, mt76);
 
 	mt7615_mcu_del_sta_rec(dev, vif, sta);
 	mt7615_mcu_del_wtbl(dev, vif, sta);
@@ -262,7 +264,7 @@ static void mt7615_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_control *control,
 		      struct sk_buff *skb)
 {
-	struct mt7615_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_queue *q = &mdev->q_tx[MT7615_TXQ_MAIN];
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -300,7 +302,7 @@ static void mt7615_tx(struct ieee80211_hw *hw,
 
 static int mt7615_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 {
-	struct mt7615_dev *dev = hw->priv;
+	struct mt76x35_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 	mt7615_mcu_set_rts_thresh(dev, val);
