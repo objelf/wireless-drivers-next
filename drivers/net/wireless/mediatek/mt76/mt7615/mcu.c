@@ -1377,6 +1377,7 @@ int mt7615_mcu_set_ht_cap(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		buf_len += sizeof(*wtbl_vht);
 		wtbl_vht->tag = cpu_to_le16(WTBL_VHT);
 		wtbl_vht->len = cpu_to_le16(sizeof(*wtbl_vht));
+		wtbl_vht->ldpc = sta->ht_cap.cap & IEEE80211_VHT_CAP_RXLDPC;
 		wtbl_vht->vht = 1;
 
 		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80)

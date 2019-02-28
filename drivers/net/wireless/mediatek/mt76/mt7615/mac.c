@@ -265,7 +265,7 @@ u16 mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 
 	rateval = (FIELD_PREP(MT_TX_RATE_IDX, rate_idx) |
 		   FIELD_PREP(MT_TX_RATE_MODE, phy) |
-		   FIELD_PREP(MT_TX_RATE_NSS, nss));
+		   FIELD_PREP(MT_TX_RATE_NSS, nss - 1));
 
 	if (stbc && nss == 1)
 		rateval |= MT_TX_RATE_STBC;
@@ -360,7 +360,8 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 		if (info->flags & IEEE80211_TX_CTL_LDPC)
 			txwi[6] |= cpu_to_le32(MT_TXD6_LDPC);
 
-		if (!(rate->flags & IEEE80211_TX_RC_MCS))
+		if (!(rate->flags & (IEEE80211_TX_RC_MCS |
+				     IEEE80211_TX_RC_VHT_MCS)))
 			txwi[2] |= cpu_to_le32(MT_TXD2_BA_DISABLE);
 
 		tx_count = rate->count;
@@ -599,16 +600,20 @@ out:
 			sband = &dev->mt76.sband_5g.sband;
 		else
 			sband = &dev->mt76.sband_2g.sband;
-		final_rate &= GENMASK(5, 0);
+		final_rate &= MT_TX_RATE_IDX;
 		final_rate = mt7615_get_rate(dev, sband, final_rate, cck);
 		final_rate_flags = 0;
 		break;
 	case MT_PHY_TYPE_HT_GF:
 	case MT_PHY_TYPE_HT:
 		final_rate_flags |= IEEE80211_TX_RC_MCS;
-		final_rate &= GENMASK(5, 0);
+		final_rate &= MT_TX_RATE_IDX;
 		if (i > 15)
 			return false;
+		break;
+	case MT_PHY_TYPE_VHT:
+		final_rate_flags |= IEEE80211_TX_RC_VHT_MCS;
+		final_rate &= MT_TX_RATE_IDX;
 		break;
 	default:
 		return false;

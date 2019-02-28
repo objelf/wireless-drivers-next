@@ -182,6 +182,9 @@ int mt7615_register_device(struct mt7615_dev *dev)
 		return ret;
 
 	hw->queues = 4;
+	hw->max_rates = 3;
+	hw->max_report_rates = 7;
+	hw->max_rate_tries = 11;
 
 	hw->sta_data_size = sizeof(struct mt7615_sta);
 	hw->vif_data_size = sizeof(struct mt7615_vif);
@@ -189,10 +192,15 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	wiphy->iface_combinations = if_comb;
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 
+	ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
+	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
+
 	dev->mt76.sband_2g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
 	dev->mt76.sband_5g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
 	dev->mt76.sband_5g.sband.vht_cap.cap |=
-				IEEE80211_VHT_CAP_SHORT_GI_160;
+				IEEE80211_VHT_CAP_SHORT_GI_160 |
+				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
+				IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
 	dev->mt76.chainmask = 0x404;
 	dev->mt76.antenna_mask = 0xf;
 	dev->mt76.hwq_quirk = 0;
