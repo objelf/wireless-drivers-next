@@ -235,5 +235,6 @@ void mt7615_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
 void mt7615_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
+struct sk_buff *mt7615_token_dequeue(struct mt7615_dev *dev, u16 token);
 
 #endif

@@ -418,15 +418,14 @@ out:
 	return token;
 }
 
-static void mt7615_token_dequeue(struct mt7615_dev *dev, u16 token)
+struct sk_buff *
+mt7615_token_dequeue(struct mt7615_dev *dev, u16 token)
 {
 	struct mt7615_token_queue *q = &dev->tkq;
-	struct mt76_dev *mdev = &dev->mt76;
-	struct sk_buff_head list;
 	struct sk_buff *skb;
 
 	if (!q->queued)
-		return;
+		return NULL;
 
 	skb = q->skb[token];
 
@@ -438,9 +437,7 @@ static void mt7615_token_dequeue(struct mt7615_dev *dev, u16 token)
 	q->queued--;
 	spin_unlock_bh(&q->lock);
 
-	mt76_tx_status_lock(mdev, &list);
-	__mt76_tx_status_skb_done(mdev, skb, MT_TX_CB_DMA_TX_FREE, &list);
-	mt76_tx_status_unlock(mdev, &list);
+	return skb;
 }
 
 int mt7615_tx_prepare_txp(struct mt76_dev *mdev, void *txwi_ptr,
@@ -707,36 +704,23 @@ out:
 	rcu_read_unlock();
 }
 
-void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
-			    struct mt76_queue_entry *e, bool flush)
-{
-	struct sk_buff *skb = e->skb;
-	struct sk_buff_head list;
-	u8 flags = MT_TX_CB_DMA_TXD_DONE;
-
-	if (!e->txwi) {
-		dev_kfree_skb_any(skb);
-		return;
-	}
-
-	if (!skb->prev)
-		flags |= MT_TX_CB_TXS_DONE;
-
-	mt76_tx_status_lock(mdev, &list);
-	__mt76_tx_status_skb_done(mdev, skb, flags, &list);
-	mt76_tx_status_unlock(mdev, &list);
-}
-
 void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 {
+	struct mt76_dev *mdev = &dev->mt76;
 	struct mt7615_tx_free *free;
 	u8 i, cnt;
 
 	free = (struct mt7615_tx_free *)skb->data;
 	cnt = FIELD_GET(MT_TX_FREE_MSDU_ID_CNT, le16_to_cpu(free->ctrl));
 
-	for (i = 0; i < cnt; i++)
-		mt7615_token_dequeue(dev, le16_to_cpu(free->token[i]));
+	for (i = 0; i < cnt; i++) {
+		struct sk_buff *skb;
 
+		skb = mt7615_token_dequeue(dev, le16_to_cpu(free->token[i]));
+		if (!skb)
+			continue;
+
+		mt76_tx_complete_skb(mdev, skb);
+	}
 	dev_kfree_skb(skb);
 }

@@ -249,12 +249,9 @@ struct mt76_rx_tid {
 	struct sk_buff *reorder_buf[];
 };
 
-#define MT_TX_CB_TXS_DONE		BIT(0)
-#define MT_TX_CB_TXS_FAILED		BIT(1)
-#define MT_TX_CB_DMA_TXD_DONE		BIT(2)
-#define MT_TX_CB_DMA_TX_FREE		BIT(3)
-#define MT_TX_CB_DMA_DONE		(MT_TX_CB_DMA_TXD_DONE | \
-					 MT_TX_CB_DMA_TX_FREE)
+#define MT_TX_CB_DMA_DONE		BIT(0)
+#define MT_TX_CB_TXS_DONE		BIT(1)
+#define MT_TX_CB_TXS_FAILED		BIT(2)
 
 #define MT_PACKET_ID_MASK		GENMASK(7, 0)
 #define MT_PACKET_ID_NO_ACK		0

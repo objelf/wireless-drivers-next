@@ -169,7 +169,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 		q->tail = (q->tail + 1) % q->ndesc;
 		q->queued--;
 
-		if (entry.skb) {
+		if (entry.skb && dev->drv->tx_complete_skb) {
 			spin_unlock_bh(&q->lock);
 			dev->drv->tx_complete_skb(dev, q, &entry, flush);
 			spin_lock_bh(&q->lock);
@@ -358,7 +358,6 @@ mt76_dma_tx_ct_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 			 struct sk_buff *skb, struct mt76_wcid *wcid,
 			 struct ieee80211_sta *sta)
 {
-	struct mt76_queue_entry e;
 	struct mt76_txwi_cache *t;
 	struct mt76_queue_buf buf[2];
 	u32 tx_info = 0;
@@ -397,9 +396,7 @@ mt76_dma_tx_ct_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	return mt76_dma_add_buf(dev, q, buf, ret, tx_info, skb, t);
 
 free:
-	e.skb = skb;
-	e.txwi = t;
-	dev->drv->tx_complete_skb(dev, q, &e, true);
+	mt76_tx_complete_skb(dev, skb);
 	mt76_put_txwi(dev, t);
 	return ret;
 }
