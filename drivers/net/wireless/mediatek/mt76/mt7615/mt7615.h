@@ -149,7 +149,8 @@ int mt7615_mcu_del_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		       int en);
 int mt7615_mcu_set_channel(struct mt7615_dev *dev);
-
+int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
+		       const struct ieee80211_tx_queue_params *params);
 int mt7615_mcu_set_tx_ba(struct mt7615_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool add);

@@ -579,17 +579,56 @@ int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val)
 		u8 prot_idx;
 		u8 band;
 		u8 rsv[2];
-		u32 len_thresh;
-		u32 pkt_thresh;
+		__le32 len_thresh;
+		__le32 pkt_thresh;
 	} __packed req = {
 		.prot_idx = 1,
 		.band = 0,
-		.len_thresh = val,
-		.pkt_thresh = 0x2,
+		.len_thresh = cpu_to_le32(val),
+		.pkt_thresh = cpu_to_le32(0x2),
 	};
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
 
 	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_PROTECT_CTRL,
+				   MCU_Q_SET, MCU_S2D_H2N, NULL);
+}
+
+int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
+		       const struct ieee80211_tx_queue_params *params)
+{
+#define WMM_AIFS_SET	BIT(0)
+#define WMM_CW_MIN_SET	BIT(1)
+#define WMM_CW_MAX_SET	BIT(2)
+#define WMM_TXOP_SET	BIT(3)
+	struct req_data {
+		u8 number;
+		u8 rsv[3];
+		u8 queue;
+		u8 valid;
+		u8 aifs;
+		u8 cw_min;
+		__le16 cw_max;
+		__le16 txop;
+	} __packed req = {
+		.number = 1,
+		.queue = queue,
+		.valid = WMM_AIFS_SET | WMM_TXOP_SET,
+		.aifs = params->aifs,
+		.txop = cpu_to_le16(params->txop),
+	};
+	struct sk_buff *skb;
+
+	if (params->cw_min) {
+		req.valid |= WMM_CW_MIN_SET;
+		req.cw_min = params->cw_min;
+	}
+	if (params->cw_max) {
+		req.valid |= WMM_CW_MAX_SET;
+		req.cw_max = cpu_to_le16(params->cw_max);
+	}
+
+	skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_EDCA_UPDATE,
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 

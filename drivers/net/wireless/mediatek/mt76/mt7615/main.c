@@ -201,6 +201,22 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 	return ret;
 }
 
+static int
+mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+	       const struct ieee80211_tx_queue_params *params)
+{
+	struct mt7615_dev *dev = hw->priv;
+	static const u8 wmm_queue_map[] = {
+		[IEEE80211_AC_BK] = 0,
+		[IEEE80211_AC_BE] = 1,
+		[IEEE80211_AC_VI] = 2,
+		[IEEE80211_AC_VO] = 3,
+	};
+
+	/* TODO: hw wmm_set 1~3 */
+	return mt7615_mcu_set_wmm(dev, wmm_queue_map[queue], params);
+}
+
 static void mt7615_configure_filter(struct ieee80211_hw *hw,
 				    unsigned int changed_flags,
 				    unsigned int *total_flags,
@@ -407,6 +423,7 @@ const struct ieee80211_ops mt7615_ops = {
 	.add_interface = mt7615_add_interface,
 	.remove_interface = mt7615_remove_interface,
 	.config = mt7615_config,
+	.conf_tx = mt7615_conf_tx,
 	.configure_filter = mt7615_configure_filter,
 	.bss_info_changed = mt7615_bss_info_changed,
 	.sta_state = mt76_sta_state,
