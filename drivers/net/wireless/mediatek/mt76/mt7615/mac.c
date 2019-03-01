@@ -394,19 +394,15 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 static int mt7615_token_enqueue(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt7615_token_queue *q = &dev->tkq;
-	int token;
-
-	if (q->queued == q->ntoken)
-		return  -ENOSPC;
+	int token = -ENOSPC;
 
 	spin_lock_bh(&q->lock);
 
-	token = q->id[q->head];
-	if (token == q->used) {
-		token = -ENOSPC;
+	if (q->queued == q->ntoken ||
+	    q->id[q->head] == q->used)
 		goto out;
-	}
 
+	token = q->id[q->head];
 	q->id[q->head] = q->used;
 	q->skb[token] = skb;
 
@@ -415,6 +411,7 @@ static int mt7615_token_enqueue(struct mt7615_dev *dev, struct sk_buff *skb)
 
 out:
 	spin_unlock_bh(&q->lock);
+
 	return token;
 }
 
@@ -424,12 +421,14 @@ mt7615_token_dequeue(struct mt7615_dev *dev, u16 token)
 	struct mt7615_token_queue *q = &dev->tkq;
 	struct sk_buff *skb;
 
-	if (!q->queued)
+	spin_lock_bh(&q->lock);
+
+	if (!q->queued) {
+		spin_unlock_bh(&q->lock);
 		return NULL;
+	}
 
 	skb = q->skb[token];
-
-	spin_lock_bh(&q->lock);
 	q->id[q->tail] = token;
 	q->skb[token] = NULL;
 
