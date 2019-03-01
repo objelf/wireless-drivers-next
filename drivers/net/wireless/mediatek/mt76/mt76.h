@@ -296,8 +296,8 @@ struct mt76_driver_ops {
 	int (*tx_prepare_txp)(struct mt76_dev *dev, void *txwi_ptr,
 			      struct sk_buff *skb, struct mt76_queue_buf *buf);
 
-	void (*tx_complete_skb)(struct mt76_dev *dev, struct mt76_queue *q,
-				struct mt76_queue_entry *e, bool flush);
+	void (*tx_complete_skb)(struct mt76_dev *dev, enum mt76_txq_id qid,
+				struct mt76_queue_entry *e);
 
 	bool (*tx_status_data)(struct mt76_dev *dev, u8 *update);
 
