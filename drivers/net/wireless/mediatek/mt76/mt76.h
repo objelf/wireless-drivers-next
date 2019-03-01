@@ -693,8 +693,6 @@ int mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
 struct sk_buff *mt76_tx_status_skb_get(struct mt76_dev *dev,
 				       struct mt76_wcid *wcid, int pktid,
 				       struct sk_buff_head *list);
-void __mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb,
-			       u8 flags, struct sk_buff_head *list);
 void mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb,
 			     struct sk_buff_head *list);
 void mt76_tx_complete_skb(struct mt76_dev *dev, struct sk_buff *skb);
