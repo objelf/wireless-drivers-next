@@ -188,16 +188,28 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 	struct mt7615_dev *dev = hw->priv;
 	int ret = 0;
 
-	mutex_lock(&dev->mt76.mutex);
-
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		mutex_lock(&dev->mt76.mutex);
+
 		ieee80211_stop_queues(hw);
 		ret = mt7615_set_channel(dev, &hw->conf.chandef);
 		ieee80211_wake_queues(hw);
+
+		mutex_unlock(&dev->mt76.mutex);
 	}
 
-	mutex_unlock(&dev->mt76.mutex);
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		mutex_lock(&dev->mt76.mutex);
 
+		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
+			dev->mt76.rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
+		else
+			dev->mt76.rxfilter &= ~MT_WF_RFCR_DROP_OTHER_UC;
+
+		mt76_wr(dev, MT_WF_RFCR, dev->mt76.rxfilter);
+
+		mutex_unlock(&dev->mt76.mutex);
+	}
 	return ret;
 }
 
@@ -222,9 +234,40 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 				    unsigned int *total_flags,
 				    u64 multicast)
 {
+	struct mt7615_dev *dev = hw->priv;
 	u32 flags = 0;
 
+#define MT76_FILTER(_flag, _hw) do { \
+		flags |= *total_flags & FIF_##_flag;			\
+		dev->mt76.rxfilter &= ~(_hw);				\
+		dev->mt76.rxfilter |= !(flags & FIF_##_flag) * (_hw);	\
+	} while (0)
+
+	dev->mt76.rxfilter &= ~(MT_WF_RFCR_DROP_OTHER_BSS |
+				MT_WF_RFCR_DROP_OTHER_BEACON |
+				MT_WF_RFCR_DROP_FRAME_REPORT |
+				MT_WF_RFCR_DROP_PROBEREQ |
+				MT_WF_RFCR_DROP_MCAST_FILTERED |
+				MT_WF_RFCR_DROP_MCAST |
+				MT_WF_RFCR_DROP_BCAST |
+				MT_WF_RFCR_DROP_DUPLICATE |
+				MT_WF_RFCR_DROP_A2_BSSID |
+				MT_WF_RFCR_DROP_UNWANTED_CTL |
+				MT_WF_RFCR_DROP_STBC_MULTI);
+
+	MT76_FILTER(OTHER_BSS, MT_WF_RFCR_DROP_OTHER_TIM |
+			       MT_WF_RFCR_DROP_A3_MAC |
+			       MT_WF_RFCR_DROP_A3_BSSID);
+
+	MT76_FILTER(FCSFAIL, MT_WF_RFCR_DROP_FCSFAIL);
+
+	MT76_FILTER(CONTROL, MT_WF_RFCR_DROP_CTS |
+			     MT_WF_RFCR_DROP_RTS |
+			     MT_WF_RFCR_DROP_CTL_RSV |
+			     MT_WF_RFCR_DROP_NDPA);
+
 	*total_flags = flags;
+	mt76_wr(dev, MT_WF_RFCR, dev->mt76.rxfilter);
 }
 
 static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
