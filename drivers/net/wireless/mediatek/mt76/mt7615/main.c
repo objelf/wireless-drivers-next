@@ -127,7 +127,6 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 static int mt7615_set_channel(struct mt7615_dev *dev,
 			      struct cfg80211_chan_def *def)
 {
-	struct mt76_queue *q;
 	int ret;
 
 	set_bit(MT76_RESET, &dev->mt76.state);
@@ -140,10 +139,7 @@ static int mt7615_set_channel(struct mt7615_dev *dev,
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
 
-	q = &dev->mt76.q_tx[MT7615_TXQ_MAIN];
-	spin_lock_bh(&q->lock);
-	mt76_txq_schedule(&dev->mt76, q);
-	spin_unlock_bh(&q->lock);
+	mt76_txq_schedule_all(&dev->mt76);
 
 	return 0;
 }

@@ -188,7 +188,7 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 }
 
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-			  struct sk_buff *skb, struct mt76_queue *q,
+			  struct sk_buff *skb, enum mt76_txq_id qid,
 			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			  u32 *tx_info)
 {
@@ -196,7 +196,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	struct mt7615_sta *msta = container_of(wcid, struct mt7615_sta, wcid);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
-	int pid = 0;
+	int pid;
 
 	if (!wcid)
 		wcid = &dev->mt76.global_wcid;

@@ -34,7 +34,7 @@
 struct mt7615_vif;
 struct mt7615_sta;
 
-enum mt7615_txq_id {
+enum mt7615_hw_txq_id {
 	MT7615_TXQ_MAIN,
 	MT7615_TXQ_EXT,
 	MT7615_TXQ_MCU,
@@ -168,38 +168,6 @@ static inline void mt7615_irq_disable(struct mt7615_dev *dev, u32 mask)
 	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
-static inline int
-mt7615_init_tx_queue(struct mt7615_dev *dev, struct mt76_queue *q,
-		     int n_desc)
-{
-	int err, idx = q - dev->mt76.q_tx;
-
-	err = mt76_queue_alloc(dev, q, idx, n_desc, 0,
-			       MT_TX_RING_BASE);
-	if (err < 0)
-		return err;
-
-	mt7615_irq_enable(dev, MT_INT_TX_DONE(idx));
-
-	return 0;
-}
-
-static inline int
-mt7615_init_rx_queue(struct mt7615_dev *dev, struct mt76_queue *q,
-		     int idx, int n_desc, int bufsize)
-{
-	int err;
-
-	err = mt76_queue_alloc(dev, q, idx, n_desc, bufsize,
-			       MT_RX_RING_BASE);
-	if (err < 0)
-		return err;
-
-	mt7615_irq_enable(dev, MT_INT_RX_DONE(idx));
-
-	return 0;
-}
-
 u16 mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 			   const struct ieee80211_tx_rate *rate,
 			   bool stbc, u8 *bw);
@@ -218,7 +186,7 @@ int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter);
 void mt7615_mcu_exit(struct mt7615_dev *dev);
 
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-			  struct sk_buff *skb, struct mt76_queue *q,
+			  struct sk_buff *skb, enum mt76_txq_id qid,
 			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			  u32 *tx_info);
 

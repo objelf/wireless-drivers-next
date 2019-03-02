@@ -355,10 +355,11 @@ free:
 EXPORT_SYMBOL_GPL(mt76_dma_tx_queue_skb);
 
 static int
-mt76_dma_tx_ct_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+mt76_dma_tx_ct_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 			 struct sk_buff *skb, struct mt76_wcid *wcid,
 			 struct ieee80211_sta *sta)
 {
+	struct mt76_queue *q = dev->q_tx[qid].q;
 	struct mt76_txwi_cache *t;
 	struct mt76_queue_buf buf[2];
 	u32 tx_info = 0;
@@ -376,7 +377,7 @@ mt76_dma_tx_ct_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	skb->prev = skb->next = NULL;
 	dma_sync_single_for_cpu(dev->dev, t->dma_addr, sizeof(t->txwi),
 				DMA_TO_DEVICE);
-	ret = dev->drv->tx_prepare_skb(dev, &t->txwi, skb, q, wcid, sta,
+	ret = dev->drv->tx_prepare_skb(dev, &t->txwi, skb, qid, wcid, sta,
 				       &tx_info);
 	if (ret < 0)
 		goto free;

@@ -9,6 +9,72 @@
 #include "../dma.h"
 #include "mac.h"
 
+static int
+mt7615_init_tx_queues(struct mt7615_dev *dev, int n_desc)
+{
+	struct mt76_sw_queue *q;
+	struct mt76_queue *hwq;
+	int err, i;
+
+	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
+	if (!hwq)
+		return -ENOMEM;
+
+	err = mt76_queue_alloc(dev, hwq, 0, n_desc, 0, MT_TX_RING_BASE);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		q = &dev->mt76.q_tx[i];
+		INIT_LIST_HEAD(&q->swq);
+		q->q = hwq;
+	}
+
+	mt7615_irq_enable(dev, MT_INT_TX_DONE(0));
+
+	return 0;
+}
+
+static int
+mt7615_init_mcu_queue(struct mt7615_dev *dev, struct mt76_sw_queue *q,
+		      int idx, int n_desc)
+{
+	struct mt76_queue *hwq;
+	int err;
+
+	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
+	if (!hwq)
+		return -ENOMEM;
+
+	err = mt76_queue_alloc(dev, hwq, idx, n_desc, 0, MT_TX_RING_BASE);
+	if (err < 0)
+		return err;
+
+	INIT_LIST_HEAD(&q->swq);
+	q->q = hwq;
+
+	mt7615_irq_enable(dev, MT_INT_TX_DONE(idx));
+
+	return 0;
+}
+
+
+static int
+mt7615_init_rx_queue(struct mt7615_dev *dev, struct mt76_queue *q,
+		     int idx, int n_desc, int bufsize)
+{
+	int err;
+
+	err = mt76_queue_alloc(dev, q, idx, n_desc, bufsize,
+			       MT_RX_RING_BASE);
+	if (err < 0)
+		return err;
+
+	mt7615_irq_enable(dev, MT_INT_RX_DONE(idx));
+
+	return 0;
+}
+
 void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb)
 {
@@ -48,7 +114,7 @@ static void mt7615_tx_tasklet(unsigned long data)
 	struct mt7615_dev *dev = (struct mt7615_dev *)data;
 	int i;
 
-	for (i = MT7615_TXQ_MCU; i >= 0; i--)
+	for (i = MT_TXQ_MCU; i >= 0; i--)
 		mt76_queue_tx_cleanup(dev, i, false);
 
 	mt7615_irq_enable(dev, MT_INT_TX_DONE_ALL);
@@ -89,18 +155,19 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	mt76_clear(dev, 0x7000, BIT(23));
 	mt76_wr(dev, MT_WPDMA_RST_IDX, ~0);
 
-	ret = mt7615_init_tx_queue(dev, &dev->mt76.q_tx[MT7615_TXQ_MAIN],
-				   MT7615_TX_RING_SIZE);
+	ret = mt7615_init_tx_queues(dev, MT7615_TX_RING_SIZE);
 	if (ret)
 		return ret;
 
-	ret = mt7615_init_tx_queue(dev, &dev->mt76.q_tx[MT7615_TXQ_MCU],
-				   MT7615_TX_MCU_RING_SIZE);
+	ret = mt7615_init_mcu_queue(dev, &dev->mt76.q_tx[MT_TXQ_MCU],
+				    MT7615_TXQ_MCU,
+				    MT7615_TX_MCU_RING_SIZE);
 	if (ret)
 		return ret;
 
-	ret = mt7615_init_tx_queue(dev, &dev->mt76.q_tx[MT7615_TXQ_FWDL],
-				   MT7615_TX_FWDL_RING_SIZE);
+	ret = mt7615_init_mcu_queue(dev, &dev->mt76.q_tx[MT_TXQ_FWDL],
+				    MT7615_TXQ_FWDL,
+				    MT7615_TX_FWDL_RING_SIZE);
 	if (ret)
 		return ret;
 
