@@ -65,13 +65,10 @@ struct mt7615_vif {
 struct mt7615_token_queue {
 	struct sk_buff **skb;
 	spinlock_t lock;
-	int *id;
 
 	int ntoken;
 	int queued;
-	int used;
-	u16 head;
-	u16 tail;
+	u16 index;
 };
 
 struct mt7615_dev {

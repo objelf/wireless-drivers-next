@@ -449,15 +449,13 @@ static int mt7615_token_enqueue(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	spin_lock_bh(&q->lock);
 
-	if (q->queued == q->ntoken ||
-	    q->id[q->head] == q->used)
+	if (q->queued == q->ntoken || q->skb[q->index])
 		goto out;
 
-	token = q->id[q->head];
-	q->id[q->head] = q->used;
-	q->skb[token] = skb;
+	q->skb[q->index] = skb;
+	token = q->index;
 
-	q->head = (q->head + 1) % q->ntoken;
+	q->index = (q->index + 1) % q->ntoken;
 	q->queued++;
 
 out:
@@ -470,21 +468,18 @@ struct sk_buff *
 mt7615_token_dequeue(struct mt7615_dev *dev, u16 token)
 {
 	struct mt7615_token_queue *q = &dev->tkq;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 
 	spin_lock_bh(&q->lock);
 
-	if (!q->queued) {
-		spin_unlock_bh(&q->lock);
-		return NULL;
-	}
+	if (!q->queued || !q->skb[token])
+		goto out;
 
 	skb = q->skb[token];
-	q->id[q->tail] = token;
 	q->skb[token] = NULL;
-
-	q->tail = (q->tail + 1) % q->ntoken;
 	q->queued--;
+
+out:
 	spin_unlock_bh(&q->lock);
 
 	return skb;

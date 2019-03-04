@@ -12,30 +12,14 @@
 static int mt7615_alloc_token(struct mt7615_dev *dev)
 {
 	struct mt7615_token_queue *q = &dev->tkq;
-	int i, size;
 
 	spin_lock_init(&q->lock);
-
 	q->ntoken = MT7615_TOKEN_SIZE + 1;
-	q->used = q->ntoken;
-	q->tail = 0;
-	q->head = 0;
-	q->queued = 0;
 
-	size = q->ntoken * sizeof(*q->skb);
-	q->skb = devm_kzalloc(dev->mt76.dev, size, GFP_KERNEL);
-	if (!q->skb)
-		return -ENOMEM;
+	q->skb = devm_kcalloc(dev->mt76.dev, q->ntoken,
+			      sizeof(*q->skb), GFP_KERNEL);
 
-	size = q->ntoken * sizeof(*q->id);
-	q->id = devm_kzalloc(dev->mt76.dev, size, GFP_KERNEL);
-	if (!q->id)
-		return -ENOMEM;
-
-	for (i = 0; i < q->ntoken; i++)
-		q->id[i] = i;
-
-	return 0;
+	return q->skb ? 0 : -ENOMEM;
 }
 
 static void mt7615_token_cleanup(struct mt7615_dev *dev)
