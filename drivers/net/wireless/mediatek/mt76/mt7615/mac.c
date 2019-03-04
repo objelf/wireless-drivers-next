@@ -161,7 +161,58 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	}
 
 	if (rxd0 & MT_RXD0_NORMAL_GROUP_3) {
-		/* TODO: rxv */
+		u32 rxdg0 = le32_to_cpu(rxd[0]);
+		u32 rxdg1 = le32_to_cpu(rxd[1]);
+		u8 stbc = FIELD_GET(MT_RXV1_HT_STBC, rxdg0);
+		bool cck = false;
+
+		i = FIELD_GET(MT_RXV1_TX_RATE, rxdg0);
+		switch (FIELD_GET(MT_RXV1_TX_MODE, rxdg0)) {
+		case MT_PHY_TYPE_CCK:
+			cck = true;
+			/* fall through */
+		case MT_PHY_TYPE_OFDM:
+			i = mt7615_get_rate(dev, sband, i, cck);
+			break;
+		case MT_PHY_TYPE_HT_GF:
+		case MT_PHY_TYPE_HT:
+			status->encoding = RX_ENC_HT;
+			if (i > 15)
+				return -EINVAL;
+			break;
+		case MT_PHY_TYPE_VHT:
+			status->nss = FIELD_GET(MT_RXV2_NSTS, rxdg1) + 1;
+			status->encoding = RX_ENC_VHT;
+			break;
+		default:
+			return -EINVAL;
+		}
+		status->rate_idx = i;
+
+		switch (FIELD_GET(MT_RXV1_FRAME_MODE, rxdg0)) {
+		case MT_PHY_BW_20:
+			break;
+		case MT_PHY_BW_40:
+			status->bw = RATE_INFO_BW_40;
+			break;
+		case MT_PHY_BW_80:
+			status->bw = RATE_INFO_BW_80;
+			break;
+		case MT_PHY_BW_160:
+			status->bw = RATE_INFO_BW_160;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (rxdg0 & MT_RXV1_HT_SHORT_GI)
+			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
+		if (rxdg0 & MT_RXV1_HT_AD_CODE)
+			status->enc_flags |= RX_ENC_FLAG_LDPC;
+
+		status->enc_flags |= RX_ENC_FLAG_STBC_MASK * stbc;
+
+		/* TODO: RSSI */
 		rxd += 6;
 		if ((u8 *)rxd - skb->data >= skb->len)
 			return -EINVAL;
@@ -520,7 +571,7 @@ static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
 	int i, idx, count, final_idx = 0;
 	bool fixed_rate, final_mpdu, ack_timeout;
 	bool probe, ampdu, cck = false;
-	u32 final_rate, final_rate_flags, txs;
+	u32 final_rate, final_rate_flags, final_nss, txs;
 	u8 pid;
 
 	fixed_rate = info->status.rates[0].count;
@@ -604,12 +655,13 @@ out:
 	case MT_PHY_TYPE_HT:
 		final_rate_flags |= IEEE80211_TX_RC_MCS;
 		final_rate &= MT_TX_RATE_IDX;
-		if (i > 15)
+		if (final_rate > 15)
 			return false;
 		break;
 	case MT_PHY_TYPE_VHT:
+		final_nss = FIELD_GET(MT_TX_RATE_NSS, final_rate);
 		final_rate_flags |= IEEE80211_TX_RC_VHT_MCS;
-		final_rate &= MT_TX_RATE_IDX;
+		final_rate = (final_rate & MT_TX_RATE_IDX) | (final_nss << 4);
 		break;
 	default:
 		return false;

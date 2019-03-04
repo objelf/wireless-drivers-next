@@ -73,6 +73,28 @@ enum rx_pkt_type {
 #define MT_RXD3_NORMAL_TSF_COMPARE_LOSS	BIT(8)
 #define MT_RXD3_NORMAL_RXV_SEQ		GENMASK(7, 0)
 
+#define MT_RXV1_ACID_DET_H		BIT(31)
+#define MT_RXV1_ACID_DET_L		BIT(30)
+#define MT_RXV1_VHTA2_B8_B3		GENMASK(29, 24)
+#define MT_RXV1_NUM_RX			GENMASK(23, 22)
+#define MT_RXV1_HT_NO_SOUND		BIT(21)
+#define MT_RXV1_HT_SMOOTH		BIT(20)
+#define MT_RXV1_HT_SHORT_GI		BIT(19)
+#define MT_RXV1_HT_AGGR			BIT(18)
+#define MT_RXV1_VHTA1_B22		BIT(17)
+#define MT_RXV1_FRAME_MODE		GENMASK(16, 15)
+#define MT_RXV1_TX_MODE			GENMASK(14, 12)
+#define MT_RXV1_HT_EXT_LTF		GENMASK(11, 10)
+#define MT_RXV1_HT_AD_CODE		BIT(9)
+#define MT_RXV1_HT_STBC			GENMASK(8, 7)
+#define MT_RXV1_TX_RATE			GENMASK(6, 0)
+
+#define MT_RXV2_SEL_ANT			BIT(31)
+#define MT_RXV2_VALID_BIT		BIT(30)
+#define MT_RXV2_NSTS			GENMASK(29, 27)
+#define MT_RXV2_GROUP_ID		GENMASK(26, 21)
+#define MT_RXV2_LENGTH			GENMASK(20, 0)
+
 enum tx_header_format {
 	MT_HDR_FORMAT_802_3,
 	MT_HDR_FORMAT_CMD,
@@ -111,6 +133,12 @@ enum tx_mcu_port_q_idx {
 	MT_TX_MCU_PORT_RX_FWDL = 0x1e
 };
 
+enum tx_phy_bandwidth {
+	MT_PHY_BW_20,
+	MT_PHY_BW_40,
+	MT_PHY_BW_80,
+	MT_PHY_BW_160,
+};
 #define MT_CT_INFO_APPLY_TXD		BIT(0)
 #define MT_CT_INFO_COPY_HOST_TXD_ALL	BIT(1)
 #define MT_CT_INFO_MGMT_FRAME		BIT(2)
