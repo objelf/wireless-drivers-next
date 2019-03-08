@@ -291,10 +291,10 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 		if (info->enable_beacon) {
 			mt7615_mcu_set_bss_info(dev, vif, 1);
 			mt7615_mcu_add_wtbl_bmc(dev, vif);
-			mt7615_mcu_set_sta_rec_bmc(dev, vif, 1);
+			mt7615_mcu_add_sta_rec_bmc(dev, vif);
 			mt7615_mcu_set_bcn(dev, vif, 1);
 		} else {
-			mt7615_mcu_set_sta_rec_bmc(dev, vif, 0);
+			mt7615_mcu_del_sta_rec_bmc(dev, vif);
 			mt7615_mcu_del_wtbl_bmc(dev, vif);
 			mt7615_mcu_set_bss_info(dev, vif, 0);
 			mt7615_mcu_set_bcn(dev, vif, 0);
@@ -321,7 +321,7 @@ int mt7615_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	msta->wcid.idx = idx;
 
 	mt7615_mcu_add_wtbl(dev, vif, sta);
-	mt7615_mcu_set_sta_rec(dev, vif, sta, 1);
+	mt7615_mcu_add_sta_rec(dev, vif, sta);
 
 	return 0;
 }
@@ -331,8 +331,9 @@ void mt7615_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 
-	if (sta->ht_cap.ht_supported)
-		mt7615_mcu_set_ht_cap(dev, vif, sta);
+	mt7615_mcu_add_wtbl(dev, vif, sta);
+	mt7615_mcu_set_wtbl_sgi(dev, sta);
+	mt7615_mcu_add_sta_rec(dev, vif, sta);
 }
 
 void mt7615_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -340,7 +341,7 @@ void mt7615_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 
-	mt7615_mcu_set_sta_rec(dev, vif, sta, 0);
+	mt7615_mcu_del_sta_rec(dev, vif, sta);
 	mt7615_mcu_del_wtbl(dev, vif, sta);
 }
 

@@ -124,6 +124,7 @@ int mt7615_mcu_set_dev_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			    int en);
 int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			    int en);
+int mt7615_mcu_set_wtbl_sgi(struct mt7615_dev *dev, struct ieee80211_sta *sta);
 int mt7615_mcu_set_wtbl_key(struct mt7615_dev *dev, int wcid,
 			    struct ieee80211_key_conf *key,
 			    enum set_key_cmd cmd);
@@ -137,10 +138,14 @@ int mt7615_mcu_add_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 int mt7615_mcu_del_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
 int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
-int mt7615_mcu_set_sta_rec_bmc(struct mt7615_dev *dev,
-			       struct ieee80211_vif *vif, bool add);
-int mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-			   struct ieee80211_sta *sta, bool add);
+int mt7615_mcu_add_sta_rec_bmc(struct mt7615_dev *dev,
+			       struct ieee80211_vif *vif);
+int mt7615_mcu_del_sta_rec_bmc(struct mt7615_dev *dev,
+			       struct ieee80211_vif *vif);
+int mt7615_mcu_add_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta);
+int mt7615_mcu_del_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta);
 int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		       int en);
 int mt7615_mcu_set_channel(struct mt7615_dev *dev);
@@ -152,8 +157,6 @@ int mt7615_mcu_set_tx_ba(struct mt7615_dev *dev,
 int mt7615_mcu_set_rx_ba(struct mt7615_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool add);
-int mt7615_mcu_set_ht_cap(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-			  struct ieee80211_sta *sta);
 
 static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
 {
