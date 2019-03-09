@@ -237,35 +237,6 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-			  struct sk_buff *skb, enum mt76_txq_id qid,
-			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			  u32 *tx_info)
-{
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	struct mt7615_sta *msta = container_of(wcid, struct mt7615_sta, wcid);
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_key_conf *key = info->control.hw_key;
-	int pid;
-
-	if (!wcid)
-		wcid = &dev->mt76.global_wcid;
-
-	pid = mt76_tx_status_skb_add(mdev, wcid, skb);
-
-	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) {
-		spin_lock_bh(&dev->mt76.lock);
-		msta->rate_probe = true;
-		mt7615_mcu_set_rates(dev, msta, &info->control.rates[0],
-				     msta->rates);
-		spin_unlock_bh(&dev->mt76.lock);
-	}
-
-	mt7615_mac_write_txwi(dev, txwi_ptr, skb, wcid, sta, pid, key);
-
-	return 0;
-}
-
 void mt7615_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 {
 }
@@ -484,48 +455,46 @@ out:
 	return skb;
 }
 
-int mt7615_tx_prepare_txp(struct mt76_dev *mdev, void *txwi_ptr,
-			  struct sk_buff *skb, struct mt76_queue_buf *buf)
+int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+			  struct sk_buff *skb, enum mt76_txq_id qid,
+			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
+			  struct mt76_tx_info *tx_info)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt7615_sta *msta = container_of(wcid, struct mt7615_sta, wcid);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct ieee80211_vif *vif = info->control.vif;
-	struct mt7615_txp *txp = (struct mt7615_txp *)((__le32 *)txwi_ptr + 8);
-	struct sk_buff *iter;
-	int n = 0, res = -ENOMEM, len = skb_headlen(skb);
-	dma_addr_t addr;
+	int i, pid, ret, nbuf = tx_info->nbuf - 1;
+	struct mt7615_txp *txp;
 
-#define MT_CT_PARSE_LEN		72
-#define MT_CT_DMA_BUF_NUM	2
+	if (!wcid)
+		wcid = &dev->mt76.global_wcid;
 
-	addr = dma_map_single(mdev->dev, skb->data, len, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(mdev->dev, addr)))
-		return -ENOMEM;
+	pid = mt76_tx_status_skb_add(mdev, wcid, skb);
 
-	/* pass partial skb header to fw */
-	buf->addr = addr;
-	buf->len = MT_CT_PARSE_LEN;
-
-	/* concatenate txp buffers */
-	txp->buf[n] = cpu_to_le32(addr);
-	txp->len[n++] = cpu_to_le32(len);
-
-	skb_walk_frags(skb, iter) {
-		if (n == MT_TXP_MAX_BUF_NUM)
-			goto unmap;
-
-		addr = dma_map_single(mdev->dev, iter->data, iter->len,
-				      DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(mdev->dev, addr)))
-			goto unmap;
-
-		txp->buf[n] = cpu_to_le32(addr);
-		txp->len[n++] = cpu_to_le32(iter->len);
+	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) {
+		spin_lock_bh(&dev->mt76.lock);
+		msta->rate_probe = true;
+		mt7615_mcu_set_rates(dev, msta, &info->control.rates[0],
+				     msta->rates);
+		spin_unlock_bh(&dev->mt76.lock);
 	}
 
-	txp->nbuf = n;
+	mt7615_mac_write_txwi(dev, txwi_ptr, skb, wcid, sta, pid, key);
+
+	txp = (struct mt7615_txp *)((u8 *)txwi_ptr + MT_TXD_SIZE);
+	for (i = 0; i < nbuf; i++) {
+		txp->buf[i] = cpu_to_le32(tx_info->buf[i + 1].addr);
+		txp->len[i] = cpu_to_le32(tx_info->buf[i + 1].len);
+	}
+	txp->nbuf = nbuf;
+
+	/* pass partial skb header to fw */
+	tx_info->buf[1].len = MT_CT_PARSE_LEN;
+	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
+
 	txp->flags = cpu_to_le16(MT_CT_INFO_APPLY_TXD);
 
 	if (!key)
@@ -540,22 +509,14 @@ int mt7615_tx_prepare_txp(struct mt76_dev *mdev, void *txwi_ptr,
 		txp->bss_idx = mvif->idx;
 	}
 
-	res = mt7615_token_enqueue(dev, skb);
-	if (res < 0)
-		goto unmap;
+	ret = mt7615_token_enqueue(dev, skb);
+	if (ret < 0)
+		return ret;
 
-	txp->token = cpu_to_le16(res);
+	txp->token = cpu_to_le16(ret);
 	txp->rept_wds_wcid = 0xff;
 
-	/* move txd and partial skb header into tx ring */
-	return MT_CT_DMA_BUF_NUM;
-
-unmap:
-	for (n--; n >= 0; n--)
-		dma_unmap_single(mdev->dev, txp->buf[n], txp->len[n],
-				 DMA_TO_DEVICE);
-
-	return res;
+	return 0;
 }
 
 static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,

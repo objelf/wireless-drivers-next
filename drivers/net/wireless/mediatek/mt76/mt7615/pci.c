@@ -70,7 +70,6 @@ static int mt7615_pci_probe(struct pci_dev *pdev,
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
 		.txwi_size = MT_TXD_SIZE + sizeof(struct mt7615_txp),
-		.tx_prepare_txp = mt7615_tx_prepare_txp,
 		.tx_prepare_skb = mt7615_tx_prepare_skb,
 		.rx_skb = mt7615_queue_rx_skb,
 		.rx_poll_complete = mt7615_rx_poll_complete,

@@ -4,6 +4,9 @@
 #ifndef __MT7615_MAC_H
 #define __MT7615_MAC_H
 
+#define MT_CT_PARSE_LEN			72
+#define MT_CT_DMA_BUF_NUM		2
+
 #define MT_RXD0_LENGTH			GENMASK(15, 0)
 #define MT_RXD0_PKT_TYPE		GENMASK(31, 29)
 
