@@ -66,10 +66,6 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		 MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN,
 		 MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN);
 
-	/* disable rx hdr trans */
-	mt76_rmw(dev, MT_DMA_DCR0,
-		 MT_DMA_DCR0_RX_HDR_TRANS_EN, 0);
-
 	mt76_rmw_field(dev, MT_TMAC_CTCR0,
 		       MT_TMAC_CTCR0_INS_DDLMT_REFTIME, 0x3f);
 	mt76_rmw_field(dev, MT_TMAC_CTCR0,
@@ -86,6 +82,10 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		 MT_AGG_SCR_NLNAV_MID_PTEC_DIS);
 
 	mt7615_mcu_init_mac(dev);
+
+	mt76_wr(dev, MT_DMA_DCR0,
+		MT_DMA_DCR0_RX_VEC_DROP_EN |
+		FIELD_PREP(MT_DMA_DCR0_RX_MAX_PKT_LEN, 1024));
 
 	mt76_wr(dev, MT_AGG_ARUCR, FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 7));
 	mt76_wr(dev, MT_AGG_ARDCR,
