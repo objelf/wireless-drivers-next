@@ -229,6 +229,8 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
+	hw->max_tx_fragments = MT_TXP_MAX_BUF_NUM;
+
 	return 0;
 }
 
