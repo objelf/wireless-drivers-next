@@ -286,7 +286,6 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	struct mt76_queue *q = dev->q_tx[qid].q;
 	struct mt76_tx_info tx_info = {};
 	int len, n = 0, ret = -ENOMEM;
-	struct mt76_queue_entry e;
 	struct mt76_txwi_cache *t;
 	struct sk_buff *iter;
 	dma_addr_t addr;
@@ -348,9 +347,7 @@ unmap:
 				 tx_info.buf[n].len, DMA_TO_DEVICE);
 
 free:
-	e.skb = skb;
-	e.txwi = t;
-	dev->drv->tx_complete_skb(dev, qid, &e);
+	mt76_tx_complete_skb(dev, skb);
 	mt76_put_txwi(dev, t);
 	return ret;
 }
