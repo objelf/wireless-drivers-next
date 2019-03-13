@@ -95,18 +95,17 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	memset(status, 0, sizeof(*status));
 
-	i = FIELD_GET(MT_RXD1_NORMAL_CH_FREQ, rxd1);
-	sband = (i & 1) ? &dev->mt76.sband_5g.sband :
-			  &dev->mt76.sband_2g.sband;
-	i >>= 1;
-
 	unicast = (rxd1 & MT_RXD1_NORMAL_ADDR_TYPE) == MT_RXD1_NORMAL_U2M;
 	idx = FIELD_GET(MT_RXD2_NORMAL_WLAN_IDX, rxd2);
 	status->wcid = mt7615_rx_get_wcid(dev, idx, unicast);
 
-	status->band = sband->band;
-	if (i < sband->n_channels)
-		status->freq = sband->channels[i].center_freq;
+	/* TODO: properly support DBDC */
+	status->freq = dev->mt76.chandef.chan->center_freq;
+	status->band = dev->mt76.chandef.chan->band;
+	if (status->band == NL80211_BAND_5GHZ)
+		sband = &dev->mt76.sband_5g.sband;
+	else
+		sband = &dev->mt76.sband_2g.sband;
 
 	if (rxd2 & MT_RXD2_NORMAL_FCS_ERR)
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
