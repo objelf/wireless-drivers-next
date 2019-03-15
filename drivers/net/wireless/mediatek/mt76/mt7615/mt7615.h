@@ -15,6 +15,7 @@
 #define MT7615_WTBL_STA			(MT7615_WTBL_RESERVED - \
 					 MT7615_MAX_INTERFACES)
 
+#define MT7615_WATCHDOG_TIME		100 /* ms */
 #define MT7615_RATE_RETRY		2
 
 #define MT7615_TX_RING_SIZE		1024
@@ -201,5 +202,6 @@ void mt7615_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 void mt7615_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 struct sk_buff *mt7615_token_dequeue(struct mt7615_dev *dev, u16 token);
+void mt7615_mac_work(struct work_struct *work);
 
 #endif

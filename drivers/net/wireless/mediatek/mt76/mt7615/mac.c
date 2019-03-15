@@ -730,3 +730,15 @@ void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 	}
 	dev_kfree_skb(skb);
 }
+
+void mt7615_mac_work(struct work_struct *work)
+{
+	struct mt7615_dev *dev;
+
+	dev = (struct mt7615_dev *)container_of(work, struct mt76_dev,
+						mac_work.work);
+
+	mt76_tx_status_check(&dev->mt76, NULL, false);
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+				     MT7615_WATCHDOG_TIME);
+}

@@ -179,6 +179,8 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
+	INIT_DELAYED_WORK(&dev->mt76.mac_work, mt7615_mac_work);
+
 	hw->queues = 4;
 	hw->max_rates = 3;
 	hw->max_report_rates = 7;

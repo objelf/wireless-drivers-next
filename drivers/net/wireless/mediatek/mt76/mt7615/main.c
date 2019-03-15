@@ -16,6 +16,8 @@ static int mt7615_start(struct ieee80211_hw *hw)
 	struct mt7615_dev *dev = hw->priv;
 
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+				     MT7615_WATCHDOG_TIME);
 
 	return 0;
 }
@@ -25,6 +27,7 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	struct mt7615_dev *dev = hw->priv;
 
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	cancel_delayed_work_sync(&dev->mt76.mac_work);
 }
 
 static int get_omac_idx(enum nl80211_iftype type, u32 mask)
@@ -129,6 +132,7 @@ static int mt7615_set_channel(struct mt7615_dev *dev,
 {
 	int ret;
 
+	cancel_delayed_work_sync(&dev->mt76.mac_work);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
 	mt76_set_channel(&dev->mt76);
@@ -140,7 +144,8 @@ static int mt7615_set_channel(struct mt7615_dev *dev,
 	clear_bit(MT76_RESET, &dev->mt76.state);
 
 	mt76_txq_schedule_all(&dev->mt76);
-
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+				     MT7615_WATCHDOG_TIME);
 	return 0;
 }
 
