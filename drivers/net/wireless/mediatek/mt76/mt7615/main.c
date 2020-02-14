@@ -4,11 +4,10 @@
  * Author: Roy Luo <royluo@google.com>
  *         Ryder Lee <ryder.lee@mediatek.com>
  *         Felix Fietkau <nbd@nbd.name>
+ *         Lorenzo Bianconi <lorenzo@kernel.org>
  */
 
 #include <linux/etherdevice.h>
-#include <linux/platform_device.h>
-#include <linux/pci.h>
 #include <linux/module.h>
 #include "mt7615.h"
 #include "mcu.h"
@@ -25,7 +24,7 @@ static bool mt7615_dev_running(struct mt7615_dev *dev)
 	return phy && test_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 }
 
-static int mt7615_start(struct ieee80211_hw *hw)
+int mt7615_start(struct ieee80211_hw *hw)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
@@ -68,6 +67,7 @@ out:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_start);
 
 static void mt7615_stop(struct ieee80211_hw *hw)
 {
@@ -127,8 +127,8 @@ static int get_omac_idx(enum nl80211_iftype type, u32 mask)
 	return -1;
 }
 
-static int mt7615_add_interface(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif)
+int mt7615_add_interface(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
@@ -190,9 +190,10 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt7615_add_interface);
 
-static void mt7615_remove_interface(struct ieee80211_hw *hw,
-				    struct ieee80211_vif *vif)
+void mt7615_remove_interface(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct mt7615_sta *msta = &mvif->sta;
@@ -219,6 +220,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 		list_del_init(&msta->poll_list);
 	spin_unlock_bh(&dev->sta_poll_lock);
 }
+EXPORT_SYMBOL_GPL(mt7615_remove_interface);
 
 static int mt7615_set_channel(struct mt7615_phy *phy)
 {
@@ -257,9 +259,9 @@ out:
 	return ret;
 }
 
-static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-			  struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-			  struct ieee80211_key_conf *key)
+int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		   struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		   struct ieee80211_key_conf *key)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
@@ -307,8 +309,9 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	return mt7615_mac_wtbl_set_key(dev, wcid, key, cmd);
 }
+EXPORT_SYMBOL_GPL(mt7615_set_key);
 
-static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
+int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
@@ -337,10 +340,10 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt7615_config);
 
-static int
-mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
-	       const struct ieee80211_tx_queue_params *params)
+int mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		   u16 queue, const struct ieee80211_tx_queue_params *params)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
@@ -349,11 +352,12 @@ mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 
 	return mt7615_mcu_set_wmm(dev, queue, params);
 }
+EXPORT_SYMBOL_GPL(mt7615_conf_tx);
 
-static void mt7615_configure_filter(struct ieee80211_hw *hw,
-				    unsigned int changed_flags,
-				    unsigned int *total_flags,
-				    u64 multicast)
+void mt7615_configure_filter(struct ieee80211_hw *hw,
+			     unsigned int changed_flags,
+			     unsigned int *total_flags,
+			     u64 multicast)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
@@ -403,11 +407,12 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 	else
 		mt76_set(dev, MT_WF_RFCR1(band), ctl_flags);
 }
+EXPORT_SYMBOL_GPL(mt7615_configure_filter);
 
-static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_bss_conf *info,
-				    u32 changed)
+void mt7615_bss_info_changed(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *info,
+			     u32 changed)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
@@ -437,6 +442,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_unlock(&dev->mt76.mutex);
 }
+EXPORT_SYMBOL_GPL(mt7615_bss_info_changed);
 
 static void
 mt7615_channel_switch_beacon(struct ieee80211_hw *hw,
@@ -475,6 +481,7 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_mac_sta_add);
 
 void mt7615_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
@@ -491,10 +498,11 @@ void mt7615_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		list_del_init(&msta->poll_list);
 	spin_unlock_bh(&dev->sta_poll_lock);
 }
+EXPORT_SYMBOL_GPL(mt7615_mac_sta_remove);
 
-static void mt7615_sta_rate_tbl_update(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif,
-				       struct ieee80211_sta *sta)
+void mt7615_sta_rate_tbl_update(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
@@ -516,10 +524,11 @@ static void mt7615_sta_rate_tbl_update(struct ieee80211_hw *hw,
 	msta->rate_probe = false;
 	spin_unlock_bh(&dev->mt76.lock);
 }
+EXPORT_SYMBOL_GPL(mt7615_sta_rate_tbl_update);
 
-static void mt7615_tx(struct ieee80211_hw *hw,
-		      struct ieee80211_tx_control *control,
-		      struct sk_buff *skb)
+void mt7615_tx(struct ieee80211_hw *hw,
+	       struct ieee80211_tx_control *control,
+	       struct sk_buff *skb)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt76_phy *mphy = hw->priv;
@@ -543,8 +552,9 @@ static void mt7615_tx(struct ieee80211_hw *hw,
 
 	mt76_tx(mphy, control->sta, wcid, skb);
 }
+EXPORT_SYMBOL_GPL(mt7615_tx);
 
-static int mt7615_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
+int mt7615_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
@@ -555,10 +565,10 @@ static int mt7615_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_set_rts_threshold);
 
-static int
-mt7615_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    struct ieee80211_ampdu_params *params)
+int mt7615_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			struct ieee80211_ampdu_params *params)
 {
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
@@ -610,22 +620,23 @@ mt7615_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt7615_ampdu_action);
 
-static int
-mt7615_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	       struct ieee80211_sta *sta)
+int mt7615_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		   struct ieee80211_sta *sta)
 {
     return mt76_sta_state(hw, vif, sta, IEEE80211_STA_NOTEXIST,
 			  IEEE80211_STA_NONE);
 }
+EXPORT_SYMBOL_GPL(mt7615_sta_add);
 
-static int
-mt7615_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		  struct ieee80211_sta *sta)
+int mt7615_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta)
 {
     return mt76_sta_state(hw, vif, sta, IEEE80211_STA_NONE,
 			  IEEE80211_STA_NOTEXIST);
 }
+EXPORT_SYMBOL_GPL(mt7615_sta_remove);
 
 static int
 mt7615_get_stats(struct ieee80211_hw *hw,
@@ -662,17 +673,17 @@ mt7615_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	return tsf.t64;
 }
 
-static void
-mt7615_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
+void mt7615_set_coverage_class(struct ieee80211_hw *hw,
+			       s16 coverage_class)
 {
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 
 	phy->coverage_class = max_t(s16, coverage_class, 0);
 	mt7615_mac_set_timing(phy);
 }
+EXPORT_SYMBOL_GPL(mt7615_set_coverage_class);
 
-static int
-mt7615_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+int mt7615_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
@@ -702,6 +713,7 @@ mt7615_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_set_antenna);
 
 void mt7615_scan_work(struct work_struct *work)
 {
@@ -737,27 +749,27 @@ void mt7615_scan_work(struct work_struct *work)
 	}
 }
 
-static int
-mt7615_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	       struct ieee80211_scan_request *req)
+int mt7615_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		   struct ieee80211_scan_request *req)
 {
 	struct mt76_phy *mphy = hw->priv;
 
 	return mt7615_mcu_hw_scan(mphy->priv, vif, req);
 }
+EXPORT_SYMBOL_GPL(mt7615_hw_scan);
 
-static void
-mt7615_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+void mt7615_cancel_hw_scan(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif)
 {
 	struct mt76_phy *mphy = hw->priv;
 
 	mt7615_mcu_cancel_hw_scan(mphy->priv, vif);
 }
+EXPORT_SYMBOL_GPL(mt7615_cancel_hw_scan);
 
-static int
-mt7615_start_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct cfg80211_sched_scan_request *req,
-			struct ieee80211_scan_ies *ies)
+int mt7615_start_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			    struct cfg80211_sched_scan_request *req,
+			    struct ieee80211_scan_ies *ies)
 {
 	struct mt76_phy *mphy = hw->priv;
 	int err;
@@ -768,14 +780,16 @@ mt7615_start_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	return mt7615_mcu_sched_scan_enable(mphy->priv, vif, true);
 }
+EXPORT_SYMBOL_GPL(mt7615_start_sched_scan);
 
-static int
-mt7615_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+int mt7615_stop_sched_scan(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif)
 {
 	struct mt76_phy *mphy = hw->priv;
 
 	return mt7615_mcu_sched_scan_enable(mphy->priv, vif, false);
 }
+EXPORT_SYMBOL_GPL(mt7615_stop_sched_scan);
 
 const struct ieee80211_ops mt7615_ops = {
 	.tx = mt7615_tx,
@@ -811,31 +825,6 @@ const struct ieee80211_ops mt7615_ops = {
 	.sched_scan_start = mt7615_start_sched_scan,
 	.sched_scan_stop = mt7615_stop_sched_scan,
 };
+EXPORT_SYMBOL_GPL(mt7615_ops);
 
-static int __init mt7615_init(void)
-{
-	int ret;
-
-	ret = pci_register_driver(&mt7615_pci_driver);
-	if (ret)
-		return ret;
-
-	if (IS_ENABLED(CONFIG_MT7622_WMAC)) {
-		ret = platform_driver_register(&mt7622_wmac_driver);
-		if (ret)
-			pci_unregister_driver(&mt7615_pci_driver);
-	}
-
-	return ret;
-}
-
-static void __exit mt7615_exit(void)
-{
-	if (IS_ENABLED(CONFIG_MT7622_WMAC))
-		platform_driver_unregister(&mt7622_wmac_driver);
-	pci_unregister_driver(&mt7615_pci_driver);
-}
-
-module_init(mt7615_init);
-module_exit(mt7615_exit);
 MODULE_LICENSE("Dual BSD/GPL");

@@ -301,3 +301,4 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7615_init_debugfs);
