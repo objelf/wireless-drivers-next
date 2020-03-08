@@ -22,6 +22,7 @@
 
 	chosen {
 		stdout-path = "serial2:115200n8";
+        bootargs = "earlycon=uart8250,mmio32,0x11004000 console=ttyS2,115200n1 root=/dev/mmcblk1p1 rw rootwait swiotlb=512";
 	};
 
 	cpus {
@@ -126,7 +127,7 @@
 	gmac0: mac@0 {
 		compatible = "mediatek,eth-mac";
 		reg = <0>;
-		phy-mode = "trgmii";
+		phy-mode = "rgmii";
 
 		fixed-link {
 			speed = <1000>;
@@ -138,6 +139,7 @@
 	mac@1 {
 		compatible = "mediatek,eth-mac";
 		reg = <1>;
+		phy-mode = "rgmii-rxid";
 		phy-handle = <&phy5>;
 	};
 
@@ -190,7 +192,7 @@
 					reg = <6>;
 					label = "cpu";
 					ethernet = <&gmac0>;
-					phy-mode = "trgmii";
+					phy-mode = "rgmii";
 
 					fixed-link {
 						speed = <1000>;
