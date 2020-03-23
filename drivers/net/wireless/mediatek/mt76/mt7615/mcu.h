@@ -478,10 +478,161 @@ enum {
 
 #define MCU_CMD_UNI_EXT_ACK	(MCU_CMD_ACK | MCU_CMD_UNI | MCU_CMD_QUERY)
 
+struct uni_bssinfo_basic_tlv {
+    __le16 tag;
+    __le16 len;
+    u8 active;
+    u8 omac_idx;
+    u8 hw_bss_idx;
+    u8 band_idx;
+    __le32 conn_type;
+    u8 conn_state;
+    u8 wmm_idx;
+    u8 bssid[ETH_ALEN];
+    __le16 bmc_tx_wlan_idx;
+    __le16 bcn_interval;
+    u8 dtim_period;
+    u8 phymode;
+    __le16 sta_idx;
+    u8 nonht_basic_phy;
+    u8 pad[3];
+} __packed;
+
+struct uni_bssinfo_ra_tlv {
+    __le16 tag;
+    __le16 len;
+    u8 short_preamble; /* 1: enable short preamble, 0: disable short preamble */
+    u8 testbed_force_sgi; /* 1: force sgi, 0: not force sgi */
+    u8 testbed_force_gf; /* 1: force green field, 0: not force green field */
+    u8 ht_mode; /* 0: green field, 1: mixed mode */
+    u8 se_off; /* 1: SE off, 0: SE on */
+    u8 antenna_idx;
+    __le16 max_phy_rate;
+    u8 force_tx_stream; /* the num of force Tx stream */
+    u8 pad[3];
+} __packed;
+
+struct uni_bssinfo_rlm_tlv {
+    __le16 tag;
+    __le16 len;
+    u8 primary_channel; /* primary channel number, 1~14 stands for 2.4G channel number, > 14 stands for 5G channel number */
+    u8 center_channel_s0; /* Center channel segment 0 number,
+                             It's center frequency of BW20/BW40/BW80/BW160 or lower band center frequency of BW80+80
+                            */
+    u8 center_channel_s1; /* Center channel segment 1 number,
+                             It's higer band center frequency of BW80+80
+                            */
+    u8 bandwidth;   /* Channel bandwidth */
+    u8 tx_streams;  /* TX stream number */
+    u8 rx_streams;  /* RX stream number */
+    u8 use_short_slot_time; /* TRUE: Short slot time (9us) is used, FALSE: Long slot time (20us) is used */
+    u8 ht_op_info;  /* the same bit definition as the first byte of HT Operation Information field of HT Operation IE in 802.11n spec */
+    u8 sco;     /* 0:  SCN, 1: SCA, 2: Reserved, 3: SCB */
+} __packed;
+
+struct uni_bssinfo_protection_tlv {
+    __le16 tag;
+    __le16 len;
+    __le32 protection_mode;
+        /*  Use bitmap to indicate the portection mode supported by the BSS
+        *   protection mode enum      | Value
+        *   ---------------------     | ------
+        *   HT_NON_MEMBER_PROTECT     | BIT(1)
+        *   HT_BW20_PROTECT           | BIT(2)
+        *   HT_NON_HT_MIXMODE_PROTECT | BIT(3)
+        *   LEGACY_ERP_PROTECT        | BIT(5)
+        *   VEND_LONG_NAV_PROTECT     | BIT(6)
+        *   VEND_GREEN_FIELD_PROTECT  | BIT(7)
+        *   VEND_RIFS_PROTECT         | BIT(8)
+        */
+} __packed;
+
+struct uni_bssinfo_bcn_content_tlv {
+    __le16 tag;
+    __le16 len;
+    __le16 tim_ie_pos;
+    __le16 csa_ie_pos;
+    __le16 bcc_ie_pos;
+    /* 0: enable beacon offload
+     * 1: disable beacon offload
+     * 2: update probe respond offload
+     */
+    u8 enable;
+    /* 0: legacy format (TXD + payload)
+     * 1: only cap field IE
+     */
+    u8 type;
+    __le16 pkt_len;
+    u8 pkt[512];
+} __packed;
+
+struct uni_bssinfo_rate_tlv {
+    __le16 tag;
+    __le16 len;
+    __le16 operation_rate_set; /* the operation rate set */
+    __le16 bss_basic_rate_set; /* the basic rate set */
+    __le16 bc_rate; /* the rate code for broadcast packet */
+    __le16 mc_rate; /* the rate code for multicast packet */
+    u8 preamble_mode;/* 1: use short preamble, 0: use long preamble */
+    u8 pad[3];
+} __packed;
+
+struct uni_bssinfo_sap_tlv {
+    __le16 tag;
+    __le16 len;
+    u8 is_hidden_bssid; /* TRUE: the BSS use hidden SSID, FALSE: the BSS not use hidden SSID */
+    u8 pad[2];
+    u8 ssid_len;    /* the SSID length in ssid field */
+    u8 ssid[32];    /* SSID used by this SAP */
+} __packed;
+
+struct uni_bssinfo_p2p_tlv {
+    __le16 tag;
+    __le16 len;
+    __le32 private_data;    /* P2P private data */
+} __packed;
+
+struct uni_bssinfo_qbss_tlv {
+    __le16 tag;
+    __le16 len;
+    u8  is_qos_bss; /* 1: the BSS support QBSS, 0: the BSS not support QBSS */
+} __packed;
+
+struct uni_bssinfo_sec_tlv {
+    __le16 tag;
+    __le16 len;
+    u8 auth_mode;
+        /*     Auth Mode             | Value | Note          |
+        *     --------------------  | ------|-------------- |
+        *     AUTH_MODE_OPEN        | 0     | -             |
+        *     AUTH_MODE_SHARED      | 1     | Shared key    |
+        *     AUTH_MODE_AUTO_SWITCH | 2     | Either open system or shared key |
+        *     AUTH_MODE_WPA         | 3     | -             |
+        *     AUTH_MODE_WPA_PSK     | 4     | -             |
+        *     AUTH_MODE_WPA_NONE    | 5     | For Ad hoc    |
+        *     AUTH_MODE_WPA2        | 6     | -             |
+        *     AUTH_MODE_WPA2_PSK    | 7     | -             |
+        *     AUTH_MODE_WPA2_FT     | 8     | 802.11r       |
+        *     AUTH_MODE_WPA2_FT_PSK | 9     | 802.11r       |
+        *     AUTH_MODE_WPA_OSEN    | 10    | -             |
+        *     AUTH_MODE_WPA3_SAE    | 11    | -             |
+        */
+    u8 enc_status; /* the encryption status */
+    u8 cipher_suite; /* the cipher suit */
+    u8 pad[1];
+} __packed;
+
 enum {
 	UNI_BSS_INFO_BASIC = 0,
-	UNI_BSS_INFO_RLM = 2,
+	UNI_BSS_INFO_RA,
+	UNI_BSS_INFO_RLM,
+	UNI_BSS_INFO_PROTECTION,
 	UNI_BSS_INFO_BCN_CONTENT = 7,
+	UNI_BSS_INFO_RATE = 11,
+	UNI_BSS_INFO_SAP = 13,
+	UNI_BSS_INFO_P2P,
+	UNI_BSS_INFO_QBSS,
+	UNI_BSS_INFO_SEC,
 };
 
 enum {
