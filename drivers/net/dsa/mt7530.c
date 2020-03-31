@@ -441,11 +441,19 @@ mt7530_pad_clk_setup(struct dsa_switch *ds, int mode)
 
 	switch (mode) {
 	case PHY_INTERFACE_MODE_RGMII:
+		dev_err(priv->dev,
+			"%s: setup rgmii!\n",
+			__func__);
+
 		trgint = 0;
 		/* PLL frequency: 125MHz */
 		ncpo1 = 0x0c80;
 		break;
 	case PHY_INTERFACE_MODE_TRGMII:
+		dev_err(priv->dev,
+			"%s: setup trgmii!\n",
+			__func__);
+
 		trgint = 1;
 		if (priv->id == ID_MT7621) {
 			/* PLL frequency: 150MHz: 1.2GBit */
