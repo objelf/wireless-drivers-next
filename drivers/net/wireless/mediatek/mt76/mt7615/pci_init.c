@@ -36,6 +36,7 @@ static void mt7615_init_work(struct work_struct *work)
 		dev->ops->cancel_hw_scan = NULL;
 		dev->ops->sched_scan_start = NULL;
 		dev->ops->sched_scan_stop = NULL;
+		dev->ops->set_rekey_data = NULL;
 
 		wiphy->max_sched_scan_plan_interval = 0;
 		wiphy->max_sched_scan_ie_len = 0;
