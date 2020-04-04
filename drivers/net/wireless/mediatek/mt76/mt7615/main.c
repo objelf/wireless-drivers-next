@@ -856,6 +856,78 @@ mt7615_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	return mt7615_mcu_sched_scan_enable(mphy->priv, vif, false);
 }
 
+static int __maybe_unused
+mt7615_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
+{
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+	bool ext_phy = phy != &dev->phy;
+	int err = 0;
+
+	mutex_lock(&dev->mt76.mutex);
+
+	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
+	cancel_delayed_work_sync(&phy->scan_work);
+	mt76_set(dev, MT_WF_RFCR(ext_phy), MT_WF_RFCR_DROP_OTHER_BEACON);
+	if (mt7615_dev_running(dev))
+		goto out;
+
+	set_bit(MT76_STATE_SUSPEND, &phy->mt76->state);
+	cancel_delayed_work_sync(&phy->mac_work);
+
+	ieee80211_iterate_active_interfaces(hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
+					    mt7615_mcu_set_suspend_iter, phy);
+
+	err = mt7615_mcu_set_hif_suspend(dev, true);
+out:
+	mutex_unlock(&dev->mt76.mutex);
+
+	return err;
+}
+
+static int __maybe_unused mt7615_resume(struct ieee80211_hw *hw)
+{
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+	bool running, ext_phy = phy != &dev->phy;
+	int err = 0;
+
+	mutex_lock(&dev->mt76.mutex);
+
+	running = mt7615_dev_running(dev);
+	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
+	if (running)
+		goto out;
+
+	err = mt7615_mcu_set_hif_suspend(dev, false);
+	if (err < 0)
+		goto out;
+
+	clear_bit(MT76_STATE_SUSPEND, &phy->mt76->state);
+	ieee80211_iterate_active_interfaces(hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
+					    mt7615_mcu_set_suspend_iter, phy);
+
+	ieee80211_queue_delayed_work(hw, &phy->mac_work,
+				     MT7615_WATCHDOG_TIME);
+out:
+	mt76_clear(dev, MT_WF_RFCR(ext_phy), MT_WF_RFCR_DROP_OTHER_BEACON);
+
+	mutex_unlock(&dev->mt76.mutex);
+
+	return err;
+}
+
+static void __maybe_unused
+mt7615_set_wakeup(struct ieee80211_hw *hw, bool enabled)
+{
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	struct mt76_dev *mdev = &dev->mt76;
+
+	device_set_wakeup_enable(mdev->dev, enabled);
+}
+
 const struct ieee80211_ops mt7615_ops = {
 	.tx = mt7615_tx,
 	.start = mt7615_start,
@@ -889,6 +961,11 @@ const struct ieee80211_ops mt7615_ops = {
 	.cancel_hw_scan = mt7615_cancel_hw_scan,
 	.sched_scan_start = mt7615_start_sched_scan,
 	.sched_scan_stop = mt7615_stop_sched_scan,
+#ifdef CONFIG_PM
+	.suspend = mt7615_suspend,
+	.resume = mt7615_resume,
+	.set_wakeup = mt7615_set_wakeup,
+#endif /* CONFIG_PM */
 };
 EXPORT_SYMBOL_GPL(mt7615_ops);
 
