@@ -377,6 +377,14 @@ static int __maybe_unused mt7663u_suspend(struct usb_interface *intf,
 {
 	struct mt7615_dev *dev = usb_get_intfdata(intf);
 
+	if (!test_bit(MT76_STATE_SUSPEND, &dev->mphy.state)) {
+		int err;
+
+		err = mt7615_mcu_set_hif_suspend(dev, true);
+		if (err < 0)
+			return err;
+	}
+
 	mt76u_stop_rx(&dev->mt76);
 
 	mt76u_stop_tx(&dev->mt76);
@@ -396,7 +404,14 @@ static int __maybe_unused mt7663u_resume(struct usb_interface *intf)
 	if (err)
 		return err;
 
-	return mt76u_resume_rx(&dev->mt76);
+	err = mt76u_resume_rx(&dev->mt76);
+	if (err < 0)
+		return err;
+
+	if (!test_bit(MT76_STATE_SUSPEND, &dev->mphy.state))
+		err = mt7615_mcu_set_hif_suspend(dev, false);
+
+	return err;
 }
 
 MODULE_DEVICE_TABLE(usb, mt7615_device_table);
