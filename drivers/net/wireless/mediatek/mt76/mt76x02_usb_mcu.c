@@ -111,7 +111,7 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	if (wait_resp)
 		ret = mt76x02u_mcu_wait_resp(dev, seq);
 
-	consume_skb(skb);
+	dev_kfree_skb(skb);
 
 	return ret;
 }

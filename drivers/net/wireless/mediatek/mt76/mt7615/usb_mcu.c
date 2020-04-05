@@ -37,7 +37,7 @@ mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (ret < 0)
 		goto out;
 
-	consume_skb(skb);
+	dev_kfree_skb(skb);
 	if (wait_resp)
 		ret = mt7615_mcu_wait_response(dev, cmd, seq);
 
