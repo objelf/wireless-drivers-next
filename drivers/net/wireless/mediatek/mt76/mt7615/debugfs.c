@@ -397,6 +397,212 @@ out:
 	return ret;
 }
 
+static int
+mt7615_dump_wtbl_entry(struct mt7615_dev *dev, struct seq_file *s, int index)
+{
+	u8 invalid_mac[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+	struct sk_buff *skb;
+	int ret, i;
+
+	static const struct {
+		const char *name;
+		size_t len;
+		bool rsv;
+	} wtbl[] = {
+		/* tx config */
+		FIELDX(pa, 6, false),
+		FIELD1(sw),
+		FIELD1(dis_rx_hdrtran),
+		FIELD1(aadom),
+		FIELD1(pfmu_idx),
+		FIELDX(partial_aid, 2, false),
+		FIELD1(tibf),
+		FIELD1(tebf),
+		FIELD1(is_ht),
+		FIELD1(is_vht),
+		FIELD1(mesh),
+		FIELD1(baf_en),
+		FIELD1(cfack),
+		FIELD1(rdg_ba),
+		FIELD1(rdg),
+		FIELD1(is_pwrmgt),
+		FIELD1(rts),
+		FIELD1(smps),
+		FIELD1(txop_ps),
+		FIELD1(donot_update_ipsm),
+		FIELD1(skip_tx),
+		FIELD1(ldpc),
+		FIELD1(is_qos),
+		FIELD1(is_fromds),
+		FIELD1(is_tods),
+		FIELD1(dyn_bw),
+		FIELD1(is_amsdu_cross_lg),
+		FIELD1(check_per),
+		FIELD1(is_gid63),
+		FIELDX(reserved1, 1, true),
+		FIELD1(vht_tibf),
+		FIELD1(vht_tebf),
+		FIELD1(vht_ldpc),
+		FIELDX(reserved2, 1, true),
+
+		/* sec config */
+		FIELD1(wpi_flag),
+		FIELD1(rv),
+		FIELD1(ikv),
+		FIELD1(rkv),
+		FIELD1(rcid),
+		FIELD1(rca1),
+		FIELD1(rca2),
+		FIELD1(even_pn),
+		FIELD1(key_id),
+		FIELD1(muar_idx),
+		FIELD1(cipher_suit),
+		FIELDX(reserved3, 1, true),
+
+		/* key config */
+		FIELDX(key0, 4, false),
+		FIELDX(key1, 4, false),
+		FIELDX(key2, 4, false),
+		FIELDX(key3, 4, false),
+		FIELDX(key4, 4, false),
+		FIELDX(key5, 4, false),
+		FIELDX(key6, 4, false),
+		FIELDX(key7, 4, false),
+
+		/* peer rate info */
+		FIELD1(counter_mpdu_fail),
+		FIELD1(counter_mpdu_tx),
+		FIELD1(rate_idx),
+		FIELDX(reserved4, 1, true),
+		FIELDX(rate_code0, 2, false),
+		FIELDX(rate_code1, 2, false),
+		FIELDX(rate_code2, 2, false),
+		FIELDX(rate_code3, 2, false),
+		FIELDX(rate_code4, 2, false),
+		FIELDX(rate_code5, 2, false),
+		FIELDX(rate_code6, 2, false),
+		FIELDX(rate_code7, 2, false),
+
+		/* peer ba info */
+		FIELD1(ba_en),
+		FIELDX(reserved5, 3, true),
+		FIELDX(ba_win_size, 4, false),
+
+		/* peer cap info */
+		FIELD1(ant_id_sts0),
+		FIELD1(ant_id_sts1),
+		FIELD1(ant_id_sts2),
+		FIELD1(ant_id_sts3),
+		FIELD1(tx_power_offset),
+		FIELD1(counter_bw_selector),
+		FIELD1(change_bw_after_raten),
+		FIELD1(frequency_capability),
+		FIELD1(spatial_extension_index),
+		FIELD1(g2),
+		FIELD1(g4),
+		FIELD1(g8),
+		FIELD1(g16),
+		FIELD1(mmss),
+		FIELD1(ampdu_factor),
+		FIELDX(reserved6, 1, true),
+
+		/* peer rx counter info */
+		FIELD1(rx_rcpi0),
+		FIELD1(rx_rcpi1),
+		FIELD1(rx_rcpi2),
+		FIELD1(rx_rcpi3),
+		FIELD1(rx_cc0),
+		FIELD1(rx_cc1),
+		FIELD1(rx_cc2),
+		FIELD1(rx_cc3),
+		FIELD1(rx_cc_sel),
+		FIELD1(cermsd),
+		FIELDX(reserved7, 2, true),
+
+		/* peer tx counter info */
+		FIELD2(rate1_tx_cnt),
+		FIELD2(rate1_fail_cnt),
+		FIELD2(rate2_ok_cnt),
+		FIELD2(rate3_ok_cnt),
+		FIELD2(cur_bw_tx_cnt),
+		FIELD2(cur_bw_fail_cnt),
+		FIELD2(other_bw_tx_cnt),
+		FIELD2(other_bw_fail_cnt),
+	};
+
+	ret = mt7615_mcu_get_wtbl_info(dev, index, &skb);
+	if (ret)
+		goto out;
+
+	if (skb->len < ETH_ALEN) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (is_zero_ether_addr(skb->data) ||
+	    !memcmp(skb->data, invalid_mac, ETH_ALEN)) {
+		ret = 0;
+		goto out;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(wtbl); i++) {
+		const char *name = wtbl[i].name;
+		size_t len = wtbl[i].len;
+		bool rsv = wtbl[i].rsv;
+
+		if (skb->len < len) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (rsv)
+			goto next;
+
+		seq_printf(s, "entry %d: %s: ", index, name);
+
+		if (len == 1) {
+			u8 *tmp = (u8 *)skb->data;
+
+			seq_printf(s, "%u\n", *tmp);
+		} else if (len == 2) {
+			__le16 *tmp = (__le16 *)skb->data;
+
+			seq_printf(s, "%u\n", __le16_to_cpu(*tmp));
+		} else if (len == 4) {
+			__le32 *tmp = (__le32 *)skb->data;
+
+			seq_printf(s, "%u\n", __le32_to_cpu(*tmp));
+		} else if (len == ETH_ALEN) {
+			seq_printf(s, "%pM\n", skb->data);
+		}
+next:
+		skb_pull(skb, len);
+	}
+
+	if (skb->len)
+		dev_err(dev->mt76.dev, "wtbl event length mismatched\n");
+
+out:
+	dev_kfree_skb(skb);
+
+	return ret;
+}
+
+static int
+mt7615_wtbl_read(struct seq_file *s, void *data)
+{
+	struct mt7615_dev *dev = dev_get_drvdata(s->private);
+	int ret, i;
+
+	for (i = 0; i < 256; i++) {
+		ret = mt7615_dump_wtbl_entry(dev, s, i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int mt7615_init_debugfs(struct mt7615_dev *dev)
 {
 	struct dentry *dir;
@@ -415,6 +621,8 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 				    mt7615_queues_acq);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "mib_info", dir,
 				    mt7615_mib_read);
+	debugfs_create_devm_seqfile(dev->mt76.dev, "wtbl_table", dir,
+				    mt7615_wtbl_read);
 	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
 	debugfs_create_file("scs", 0600, dir, dev, &fops_scs);
 	debugfs_create_file("dbdc", 0600, dir, dev, &fops_dbdc);
