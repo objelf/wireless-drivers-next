@@ -13,16 +13,12 @@
 #include "mcu.h"
 #include "regs.h"
 
-static int
-mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			 int cmd, bool wait_resp)
+static int __mt7663u_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
+				  int cmd, int *wait_seq)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	int ret, seq, ep;
+	int ret, ep;
 
-	mutex_lock(&mdev->mcu.mutex);
-
-	mt7615_mcu_fill_msg(dev, skb, cmd, &seq);
+	mt7615_mcu_fill_msg(dev, skb, cmd, wait_seq);
 	if (cmd != MCU_CMD_FW_SCATTER)
 		ep = MT_EP_OUT_INBAND_CMD;
 	else
@@ -34,8 +30,23 @@ mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 
 	ret = mt76u_bulk_msg(&dev->mt76, skb->data, skb->len, NULL,
 			     1000, ep);
+out:
 	dev_kfree_skb(skb);
-	if (ret < 0)
+
+	return ret;
+}
+
+static int
+mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+			 int cmd, bool wait_resp)
+{
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	int ret, seq;
+
+	mutex_lock(&mdev->mcu.mutex);
+
+	ret =  __mt7663u_mcu_msg_send(dev, skb, cmd, &seq);
+	if (ret)
 		goto out;
 
 	if (wait_resp)
