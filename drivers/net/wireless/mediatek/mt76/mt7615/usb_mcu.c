@@ -13,8 +13,8 @@
 #include "mcu.h"
 #include "regs.h"
 
-static int __mt7663u_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
-				  int cmd, int *wait_seq)
+static int mt7615_mcu_msg_send_usb(struct mt7615_dev *dev, struct sk_buff *skb,
+				   int cmd, int *wait_seq)
 {
 	int ret, ep;
 
