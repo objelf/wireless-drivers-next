@@ -2907,3 +2907,23 @@ int mt7615_mcu_sched_scan_enable(struct mt7615_phy *phy,
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_SCHED_SCAN_ENABLE,
 				   &req, sizeof(req), false);
 }
+
+int mt7615_mcu_get_mib_info(struct mt7615_phy *phy, struct sk_buff **skb)
+{
+	struct mt7615_dev *dev = phy->dev;
+	struct {
+		u8 ext_phy;
+		u8 rsv[3];
+	} __packed req = {
+		.ext_phy = phy != &dev->phy,
+	};
+	int ret;
+
+	if (!mt7615_firmware_offload(dev))
+		return -ENOTSUPP;
+
+	ret = __mt76_mcu_send_msg_rsp(&dev->mt76, MCU_CMD_GET_MIB_INFO,
+				      &req, sizeof(req), skb);
+
+	return ret;
+}

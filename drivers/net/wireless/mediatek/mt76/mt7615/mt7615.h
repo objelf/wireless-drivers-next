@@ -427,6 +427,7 @@ int mt7615_start_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_scan_ies *ies);
 int mt7615_stop_sched_scan(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif);
+int mt7615_mcu_get_mib_info(struct mt7615_phy *phy, struct sk_buff **skb);
 void mt7615_tx(struct ieee80211_hw *hw,
 	       struct ieee80211_tx_control *control,
 	       struct sk_buff *skb);

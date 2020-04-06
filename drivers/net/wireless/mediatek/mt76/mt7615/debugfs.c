@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: ISC
 
 #include "mt7615.h"
+#include "mcu.h"
 
 static int
 mt7615_radar_pattern_set(void *data, u64 val)
@@ -260,6 +261,142 @@ mt7615_queues_read(struct seq_file *s, void *data)
 	return 0;
 }
 
+#define FIELD1(_name) {	\
+		.name = #_name,	\
+		.len = 1,	\
+		.rsv = false,	\
+		}
+
+#define FIELD2(_name) {	\
+		.name = #_name,	\
+		.len = 2,	\
+		.rsv = false	\
+		}
+
+#define FIELD4(_name) {	\
+		.name = #_name,	\
+		.len = 4,	\
+		.rsv = false	\
+		}
+
+#define FIELDX(_name, x, reserved) { \
+		.name = #_name,	\
+		.len = x,	\
+		.rsv = reserved,	\
+		}
+
+static int
+mt7615_mib_read(struct seq_file *s, void *data)
+{
+	struct mt7615_dev *dev = dev_get_drvdata(s->private);
+	struct sk_buff *skb;
+	int ret, i;
+
+	static const struct {
+		const char *name;
+		size_t len;
+		bool rsv;
+	} mib[] = {
+		FIELD4(rx_fcs_err_cnt),
+		FIELD4(rx_fifo_full_cnt),
+		FIELD4(rx_mpdu_cnt),
+		FIELD4(rx_ampducnt),
+		FIELD4(rx_total_byte),
+		FIELD4(rx_valid_ampdusf),
+		FIELD4(rx_valid_byte),
+		FIELD4(channel_idle_cnt),
+		FIELD4(rx_vector_drop_cnt),
+		FIELD4(delimiter_failed_cnt),
+		FIELD4(rx_vector_mismatch_cnt),
+		FIELD4(mdrdy_cnt),
+		FIELD4(cckmdrdy_cnt),
+		FIELD4(ofdmlgmix_mdrdy),
+		FIELD4(ofdmgreen_mdrdy),
+		FIELD4(pfdrop_cnt),
+		FIELD4(rx_len_mismatch_cnt),
+		FIELD4(pcca_time),
+		FIELD4(scca_time),
+		FIELD4(cca_nav_tx),
+		FIELD4(pedtime),
+		FIELD4(beacon_tx_cnt),
+		FIELD4(ba_missed_cnt_0),
+		FIELD4(ba_missed_cnt_1),
+		FIELD4(ba_missed_cnt_2),
+		FIELD4(ba_missed_cnt_3),
+		FIELD4(rts_tx_cnt_0),
+		FIELD4(rts_tx_cnt_1),
+		FIELD4(rts_tx_cnt_2),
+		FIELD4(rts_tx_cnt_3),
+		FIELD4(frame_retry_cnt_0),
+		FIELD4(frame_retry_cnt_1),
+		FIELD4(frame_retry_cnt_2),
+		FIELD4(frame_retry_cnt_3),
+		FIELD4(frame_retry2cnt_0),
+		FIELD4(frame_retry2cnt_1),
+		FIELD4(frame_retry2cnt_2),
+		FIELD4(frame_retry2cnt_3),
+		FIELD4(rts_retry_cnt_0),
+		FIELD4(rts_retry_cnt_1),
+		FIELD4(rts_retry_cnt_2),
+		FIELD4(rts_retry_cnt_3),
+		FIELD4(ack_failed_cnt_0),
+		FIELD4(ack_failed_cnt_1),
+		FIELD4(ack_failed_cnt_2),
+		FIELD4(ack_failed_cnt_3),
+		FIELD4(tx40mhz_cnt),
+		FIELD4(tx80mhz_cnt),
+		FIELD4(tx160mhz_cnt),
+		FIELD4(tx_sf_cnt),
+		FIELD4(tx_ack_sf_cnt),
+		FIELD4(tx_ampdu_cnt),
+		FIELD4(tx_rsp_ba_cnt),
+		FIELD2(tx_early_stop_cnt),
+		FIELD2(tx_range1ampdu_cnt),
+		FIELD2(tx_range2ampdu_cnt),
+		FIELD2(tx_range3ampdu_cnt),
+		FIELD2(tx_range4ampdu_cnt),
+		FIELD2(tx_range5ampdu_cnt),
+		FIELD2(tx_range6ampdu_cnt),
+		FIELD2(tx_range7ampdu_cnt),
+		FIELD2(tx_range8ampdu_cnt),
+		FIELD2(tx_range9ampdu_cnt)
+	};
+
+	ret = mt7615_mcu_get_mib_info(&dev->phy, &skb);
+	if (ret)
+		goto out;
+
+	for (i = 0; i < ARRAY_SIZE(mib); i++) {
+		const char *name = mib[i].name;
+		size_t len = mib[i].len;
+
+		if (skb->len < len) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (len == 4) {
+			__le32 *tmp = (__le32 *)skb->data;
+
+			seq_printf(s, "%s: %u\n", name, le32_to_cpu(*tmp));
+		} else if (len == 2) {
+			__le16 *tmp = (__le16 *)skb->data;
+
+			seq_printf(s, "%s: %u\n", name, le16_to_cpu(*tmp));
+		}
+
+		skb_pull(skb, len);
+	}
+
+	if (skb->len)
+		dev_err(dev->mt76.dev, "MIB event length mismatched\n");
+
+	dev_kfree_skb(skb);
+
+out:
+	return ret;
+}
+
 int mt7615_init_debugfs(struct mt7615_dev *dev)
 {
 	struct dentry *dir;
@@ -276,6 +413,8 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 					    mt76_queues_read);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7615_queues_acq);
+	debugfs_create_devm_seqfile(dev->mt76.dev, "mib_info", dir,
+				    mt7615_mib_read);
 	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
 	debugfs_create_file("scs", 0600, dir, dev, &fops_scs);
 	debugfs_create_file("dbdc", 0600, dir, dev, &fops_dbdc);

@@ -443,6 +443,57 @@ struct mt7615_mcu_bss_event {
 	u8 pad;
 } __packed;
 
+struct mt7615_mcu_mib_info {
+	/* mib 1 */
+	__le32 rx_fcs_err_cnt;
+	__le32 rx_fifo_full_cnt;
+	__le32 rx_mpdu_cnt;
+	__le32 rx_ampducnt;
+	__le32 rx_total_byte;
+	__le32 rx_valid_ampdusf;
+	__le32 rx_valid_byte;
+	__le32 channel_idle_cnt;
+	__le32 rx_vector_drop_cnt;
+	__le32 delimiter_failed_cnt;
+	__le32 rx_vector_mismatch_cnt;
+	__le32 mdrdy_cnt;
+	__le32 cckmdrdy_cnt;
+	__le32 ofdmlgmix_mdrdy;
+	__le32 ofdmgreen_mdrdy;
+	__le32 pfdrop_cnt;
+	__le32 rx_len_mismatch_cnt;
+	__le32 pcca_time;
+	__le32 scca_time;
+	__le32 cca_nav_tx;
+	__le32 pedtime;
+	__le32 beacon_tx_cnt;
+	__le32 ba_missed_cnt[4];
+	__le32 rts_tx_cnt[4];
+	__le32 frame_retry_cnt[4];
+	__le32 frame_retry2cnt[4];
+	__le32 rts_retry_cnt[4];
+	__le32 ack_failed_cnt[4];
+	/* mib 2 */
+	__le32 tx40mhz_cnt;
+	__le32 tx80mhz_cnt;
+	__le32 tx160mhz_cnt;
+	/* ampdu metric */
+	__le32 tx_sf_cnt;
+	__le32 tx_ack_sf_cnt;
+	__le32 tx_ampdu_cnt;
+	__le32 tx_rsp_ba_cnt;
+	__le16 tx_early_stop_cnt;
+	__le16 tx_range1ampdu_cnt;
+	__le16 tx_range2ampdu_cnt;
+	__le16 tx_range3ampdu_cnt;
+	__le16 tx_range4ampdu_cnt;
+	__le16 tx_range5ampdu_cnt;
+	__le16 tx_range6ampdu_cnt;
+	__le16 tx_range7ampdu_cnt;
+	__le16 tx_range8ampdu_cnt;
+	__le16 tx_range9ampdu_cnt;
+} __packed;
+
 /* offload mcu commands */
 enum {
 	MCU_CMD_START_HW_SCAN = MCU_CE_PREFIX | 0x03,
