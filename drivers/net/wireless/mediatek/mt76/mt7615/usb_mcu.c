@@ -36,34 +36,13 @@ out:
 	return ret;
 }
 
-static int
-mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			 int cmd, bool wait_resp)
-{
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	int ret, seq;
-
-	mutex_lock(&mdev->mcu.mutex);
-
-	ret =  __mt7663u_mcu_msg_send(dev, skb, cmd, &seq);
-	if (ret)
-		goto out;
-
-	if (wait_resp)
-		ret = mt7615_mcu_wait_response(dev, cmd, seq);
-
-out:
-	mutex_unlock(&mdev->mcu.mutex);
-
-	return ret;
-}
-
 int mt7663u_mcu_init(struct mt7615_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7663u_mcu_ops = {
 		.headroom = MT_USB_HDR_SIZE + sizeof(struct mt7615_mcu_txd),
 		.tailroom = MT_USB_TAIL_SIZE,
-		.mcu_skb_send_msg = mt7663u_mcu_send_message,
+		.mcu_skb_send_msg_bus = mt7615_mcu_msg_send_usb,
+		.mcu_skb_send_msg = mt7615_mcu_send_message,
 		.mcu_send_msg = mt7615_mcu_msg_send,
 		.mcu_restart = mt7615_mcu_restart,
 	};
