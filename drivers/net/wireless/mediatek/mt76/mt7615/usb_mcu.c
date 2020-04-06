@@ -30,7 +30,6 @@ static int mt7615_mcu_msg_send_usb(struct mt7615_dev *dev, struct sk_buff *skb,
 
 	ret = mt76u_bulk_msg(&dev->mt76, skb->data, skb->len, NULL,
 			     1000, ep);
-
 out:
 	dev_kfree_skb(skb);
 
@@ -44,7 +43,9 @@ int mt7663u_mcu_init(struct mt7615_dev *dev)
 		.tailroom = MT_USB_TAIL_SIZE,
 		.mcu_skb_send_msg_bus = mt7615_mcu_msg_send_usb,
 		.mcu_skb_send_msg = mt7615_mcu_send_message,
+		.mcu_skb_send_msg_rsp = mt7615_mcu_send_message_rsp,
 		.mcu_send_msg = mt7615_mcu_msg_send,
+		.mcu_send_msg_rsp = mt7615_mcu_msg_send_rsp,
 		.mcu_restart = mt7615_mcu_restart,
 	};
 	int ret;
