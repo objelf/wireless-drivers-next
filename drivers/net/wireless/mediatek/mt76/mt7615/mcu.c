@@ -154,9 +154,10 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(mt7615_mcu_fill_msg);
 
-static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
-				 int cmd, int *wait_seq)
+static int mt7615_mcu_msg_send_mmio(struct mt76_dev *mdev, struct sk_buff *skb,
+				    int cmd, int *wait_seq)
 {
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	enum mt76_txq_id qid;
 
 	mt7615_mcu_fill_msg(dev, skb, cmd, wait_seq);
@@ -218,16 +219,15 @@ int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq)
 }
 EXPORT_SYMBOL_GPL(mt7615_mcu_wait_response);
 
-static int
-mt7615_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			int cmd, bool wait_resp)
+int mt7615_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+			    int cmd, bool wait_resp)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	int ret, seq;
 
 	mutex_lock(&mdev->mcu.mutex);
 
-	ret = __mt7615_mcu_msg_send(dev, skb, cmd, &seq);
+	ret = __mt76_mcu_skb_send_msg_bus(mdev, skb, cmd, &seq);
 	if (ret)
 		goto out;
 
@@ -239,6 +239,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_send_message);
 
 int mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			int len, bool wait_resp)
@@ -2148,6 +2149,7 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7615_mcu_ops = {
 		.headroom = sizeof(struct mt7615_mcu_txd),
+		.mcu_skb_send_msg_bus = mt7615_mcu_msg_send_mmio,
 		.mcu_skb_send_msg = mt7615_mcu_send_message,
 		.mcu_send_msg = mt7615_mcu_msg_send,
 		.mcu_restart = mt7615_mcu_restart,
