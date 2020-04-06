@@ -43,7 +43,9 @@ int mt7663u_mcu_init(struct mt7615_dev *dev)
 		.tailroom = MT_USB_TAIL_SIZE,
 		.mcu_skb_send_msg_bus = mt7615_mcu_msg_send_usb,
 		.mcu_skb_send_msg = mt7615_mcu_send_message,
+		.mcu_skb_send_msg_rsp = mt7615_mcu_send_message_rsp,
 		.mcu_send_msg = mt7615_mcu_msg_send,
+		.mcu_send_msg_rsp = mt7615_mcu_msg_send_rsp,
 		.mcu_restart = mt7615_mcu_restart,
 	};
 	int ret;
