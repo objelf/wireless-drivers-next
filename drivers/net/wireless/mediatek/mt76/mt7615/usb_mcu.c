@@ -34,8 +34,6 @@ mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 
 	ret = mt76u_bulk_msg(&dev->mt76, skb->data, skb->len, NULL,
 			     1000, ep);
-	if (ret < 0)
-		goto out;
 
 	dev_kfree_skb(skb);
 	if (wait_resp)
