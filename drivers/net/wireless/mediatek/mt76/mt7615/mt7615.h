@@ -474,8 +474,12 @@ void mt7615_mac_reset_work(struct work_struct *work);
 int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq);
 int mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			int len, bool wait_resp);
+int mt7615_mcu_msg_send_rsp(struct mt76_dev *mdev, int cmd, const void *data,
+			    int len, struct sk_buff **resp);
 int mt7615_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			    int cmd, bool wait_resp);
+int mt7615_mcu_send_message_rsp(struct mt76_dev *mdev, struct sk_buff *skb,
+				int cmd, struct sk_buff **resp);
 int mt7615_mcu_set_dbdc(struct mt7615_dev *dev);
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
 int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable);
