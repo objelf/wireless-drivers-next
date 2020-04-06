@@ -146,6 +146,10 @@ struct mt76_mcu_ops {
 				int cmd, bool wait_resp);
 	int (*mcu_skb_send_msg_bus)(struct mt76_dev *dev, struct sk_buff *skb,
 				    int cmd, int *wait_seq);
+	int (*mcu_send_msg_rsp)(struct mt76_dev *dev, int cmd, const void *data,
+				int len, struct sk_buff **resp);
+	int (*mcu_skb_send_msg_rsp)(struct mt76_dev *dev, struct sk_buff *skb,
+				    int cmd, struct sk_buff **resp);
 	int (*mcu_wr_rp)(struct mt76_dev *dev, u32 base,
 			 const struct mt76_reg_pair *rp, int len);
 	int (*mcu_rd_rp)(struct mt76_dev *dev, u32 base,
@@ -604,7 +608,9 @@ enum mt76_phy_type {
 #define mt76_mcu_send_msg(dev, ...)	(dev)->mt76.mcu_ops->mcu_send_msg(&((dev)->mt76), __VA_ARGS__)
 
 #define __mt76_mcu_send_msg(dev, ...)	(dev)->mcu_ops->mcu_send_msg((dev), __VA_ARGS__)
+#define __mt76_mcu_send_msg_rsp(dev, ...)	(dev)->mcu_ops->mcu_send_msg_rsp((dev), __VA_ARGS__)
 #define __mt76_mcu_skb_send_msg(dev, ...)	(dev)->mcu_ops->mcu_skb_send_msg((dev), __VA_ARGS__)
+#define __mt76_mcu_skb_send_msg_rsp(dev, ...)	(dev)->mcu_ops->mcu_skb_send_msg_rsp((dev), __VA_ARGS__)
 #define __mt76_mcu_skb_send_msg_bus(dev, ...)	(dev)->mcu_ops->mcu_skb_send_msg_bus((dev), __VA_ARGS__)
 #define mt76_mcu_restart(dev, ...)	(dev)->mt76.mcu_ops->mcu_restart(&((dev)->mt76))
 #define __mt76_mcu_restart(dev, ...)	(dev)->mcu_ops->mcu_restart((dev))
