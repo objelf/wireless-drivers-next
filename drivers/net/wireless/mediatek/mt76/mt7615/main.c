@@ -74,6 +74,8 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 
+	cancel_work_sync(&phy->ps_work);
+
 	mutex_lock(&dev->mt76.mutex);
 
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
@@ -345,6 +347,20 @@ int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 }
 EXPORT_SYMBOL_GPL(mt7615_set_key);
 
+void mt7615_ps_work(struct work_struct *work)
+{
+	struct mt7615_phy *phy;
+
+	phy = (struct mt7615_phy *)container_of(work, struct mt7615_phy,
+						ps_work);
+
+	mutex_lock(&phy->dev->mt76.mutex);
+	ieee80211_iterate_active_interfaces(phy->mt76->hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
+					    m7615_mcu_set_ps_iter, phy);
+	mutex_unlock(&phy->dev->mt76.mutex);
+}
+
 int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
@@ -368,6 +384,14 @@ int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 			phy->rxfilter &= ~MT_WF_RFCR_DROP_OTHER_UC;
 
 		mt76_wr(dev, MT_WF_RFCR(band), phy->rxfilter);
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		if (hw->conf.flags & IEEE80211_CONF_PS)
+			set_bit(MT76_STATE_PS, &phy->mt76->state);
+		else
+			clear_bit(MT76_STATE_PS, &phy->mt76->state);
+		ieee80211_queue_work(hw, &phy->ps_work);
 	}
 
 	mutex_unlock(&dev->mt76.mutex);
