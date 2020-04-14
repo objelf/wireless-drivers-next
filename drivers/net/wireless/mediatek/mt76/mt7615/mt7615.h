@@ -141,6 +141,8 @@ struct mt7615_sta {
 	u8 n_rates;
 
 	u8 rate_probe;
+
+	bool alloc;
 };
 
 struct mt7615_vif {

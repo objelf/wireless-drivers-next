@@ -827,7 +827,9 @@ static void
 mt7615_mcu_sta_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta, bool enable)
 {
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct sta_rec_basic *basic;
+	struct mt7615_sta *msta;
 	struct tlv *tlv;
 
 	tlv = mt7615_mcu_add_tlv(skb, STA_REC_BASIC, sizeof(*basic));
@@ -835,11 +837,17 @@ mt7615_mcu_sta_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	basic = (struct sta_rec_basic *)tlv;
 	basic->extra_info = cpu_to_le16(EXTRA_INFO_VER);
 
+	msta = sta ? (struct mt7615_sta *)sta->drv_priv : &mvif->sta;
+
 	if (enable) {
-		basic->extra_info |= cpu_to_le16(EXTRA_INFO_NEW);
+		if (!msta->alloc) {
+			basic->extra_info |= cpu_to_le16(EXTRA_INFO_NEW);
+			msta->alloc = true;
+		}
 		basic->conn_state = CONN_STATE_PORT_SECURE;
 	} else {
 		basic->conn_state = CONN_STATE_DISCONNECT;
+		msta->alloc = false;
 	}
 
 	if (!sta) {
@@ -865,7 +873,10 @@ mt7615_mcu_sta_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	}
 
 	memcpy(basic->peer_addr, sta->addr, ETH_ALEN);
-	basic->aid = cpu_to_le16(sta->aid);
+	if (vif->type == NL80211_IFTYPE_STATION)
+		basic->aid = cpu_to_le16(vif->bss_conf.aid);
+	else
+		basic->aid = cpu_to_le16(sta->aid);
 	basic->qos = sta->wme;
 }
 
@@ -1312,6 +1323,10 @@ mt7615_mcu_uni_ctrl_pm_state(struct mt7615_dev *dev, int band, int state)
 }
 
 static int
+mt7615_mcu_uni_add_sta(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta, bool enable);
+
+static int
 mt7615_mcu_uni_add_bss(struct mt7615_phy *phy,
 		       struct ieee80211_vif *vif, bool enable)
 {
@@ -1319,6 +1334,8 @@ mt7615_mcu_uni_add_bss(struct mt7615_phy *phy,
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
 	struct mt7615_dev *dev = phy->dev;
+	struct ieee80211_sta *sta = NULL;
+
 	struct {
 		struct {
 			u8 bss_idx;
@@ -1413,7 +1430,6 @@ mt7615_mcu_uni_add_bss(struct mt7615_phy *phy,
 		break;
 	case NL80211_IFTYPE_STATION:
 		if (enable) {
-			struct ieee80211_sta *sta;
 			struct mt7615_sta *msta;
 
 			rcu_read_lock();
@@ -1478,8 +1494,15 @@ mt7615_mcu_uni_add_bss(struct mt7615_phy *phy,
 	else if (rlm_req.rlm.control_channel > rlm_req.rlm.center_chan)
 		rlm_req.rlm.sco = 3; /* SCB */
 
-	return __mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_BSS_INFO_UPDATE,
+	err = __mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_BSS_INFO_UPDATE,
 				   &rlm_req, sizeof(rlm_req), true);
+	if (err)
+		return err;
+
+	if (sta)
+		err = mt7615_mcu_uni_add_sta(phy->dev, vif, sta, true);
+
+	return err;
 }
 
 static int
