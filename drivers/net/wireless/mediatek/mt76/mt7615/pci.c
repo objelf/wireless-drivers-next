@@ -62,14 +62,12 @@ static int __maybe_unused mt7615_pci_suspend(struct pci_dev *pdev,
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	int i;
+	int i, err;
 
 	if (!test_bit(MT76_STATE_SUSPEND, &dev->mphy.state) &&
 	    mt7615_firmware_offload(dev)) {
-		int err;
-
 		err = mt7615_mcu_set_hif_suspend(dev, true);
-		if (err < 0)
+		if (err)
 			return err;
 	}
 
@@ -84,18 +82,31 @@ static int __maybe_unused mt7615_pci_suspend(struct pci_dev *pdev,
 	}
 	tasklet_kill(&dev->irq_tasklet);
 
-	return 0;
+	pci_save_state(pdev);
+	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (err)
+		return err;
+
+	return mt7615_firmware_own(dev);
 }
 
 static int __maybe_unused mt7615_pci_resume(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	int i, err = 0;
+	int i, err;
+
+	err = pci_set_power_state(pdev, PCI_D0);
+	if (err)
+		return err;
+
+	pci_restore_state(pdev);
+	err = mt7615_driver_own(dev);
+	if (err < 0)
+		return err;
 
 	for (i = 0; i < ARRAY_SIZE(mdev->q_rx); i++)
 		napi_enable(&mdev->napi[i]);
-
 	napi_enable(&mdev->tx_napi);
 
 	if (!test_bit(MT76_STATE_SUSPEND, &dev->mphy.state) &&
