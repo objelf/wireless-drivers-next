@@ -497,8 +497,18 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	if (changed & BSS_CHANGED_ASSOC)
+	if (changed & BSS_CHANGED_ASSOC) {
+		struct ieee80211_sta *sta;
+
 		mt7615_mcu_add_bss_info(phy, vif, info->assoc);
+
+		rcu_read_lock();
+		sta = ieee80211_find_sta(vif, vif->bss_conf.bssid);
+		rcu_read_unlock();
+
+		if (sta)
+			mt7615_mcu_sta_add(dev, vif, sta, info->assoc);
+	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		int slottime = info->use_short_slot ? 9 : 20;
@@ -557,7 +567,8 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt7615_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
-	mt7615_mcu_sta_add(dev, vif, sta, true);
+	if (vif->type != NL80211_IFTYPE_STATION)
+		mt7615_mcu_sta_add(dev, vif, sta, true);
 
 	return 0;
 }
