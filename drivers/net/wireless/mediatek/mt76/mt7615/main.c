@@ -424,7 +424,13 @@ mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 
 	queue += mvif->wmm_idx * MT7615_MAX_WMM_SETS;
 
-	return mt7615_mcu_set_wmm(dev, queue, params);
+	/* Have to set wmm up until BSS become active */
+	mvif->wmm[queue].cw_min = params->cw_min;
+	mvif->wmm[queue].cw_max = params->cw_max;
+	mvif->wmm[queue].aifs = params->aifs;
+	mvif->wmm[queue].txop = params->txop;
+
+	return 0;
 }
 
 static void mt7615_configure_filter(struct ieee80211_hw *hw,
@@ -502,6 +508,9 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 			mt7615_mac_set_timing(phy);
 		}
 	}
+
+	if (changed & (BSS_CHANGED_QOS | BSS_CHANGED_BEACON_ENABLED))
+		mt7615_mcu_set_wmm(dev, vif);
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		mt7615_mcu_add_bss_info(phy, vif, info->enable_beacon);

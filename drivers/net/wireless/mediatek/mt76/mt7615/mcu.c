@@ -2334,8 +2334,7 @@ int mt7615_mcu_set_rts_thresh(struct mt7615_phy *phy, u32 val)
 				   &req, sizeof(req), true);
 }
 
-int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
-		       const struct ieee80211_tx_queue_params *params)
+int mt7615_mcu_set_wmm(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 {
 #define WMM_AIFS_SET	BIT(0)
 #define WMM_CW_MIN_SET	BIT(1)
@@ -2354,21 +2353,30 @@ int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 		__le16 txop;
 	} __packed req = {
 		.number = 1,
-		.queue = queue,
 		.valid = WMM_PARAM_SET,
-		.aifs = params->aifs,
 		.cw_min = 5,
 		.cw_max = cpu_to_le16(10),
-		.txop = cpu_to_le16(params->txop),
 	};
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	int ac, err;
 
-	if (params->cw_min)
-		req.cw_min = fls(params->cw_min);
-	if (params->cw_max)
-		req.cw_max = cpu_to_le16(fls(params->cw_max));
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		req.queue = ac + mvif->wmm_idx * MT7615_MAX_WMM_SETS;
+		req.aifs = mvif->wmm[ac].aifs;
+		req.txop = cpu_to_le16(mvif->wmm[ac].txop);
 
-	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EDCA_UPDATE,
-				   &req, sizeof(req), true);
+		if (mvif->wmm[ac].cw_min)
+			req.cw_min = fls(mvif->wmm[ac].cw_min);
+		if (mvif->wmm[ac].cw_max)
+			req.cw_max = cpu_to_le16(fls(mvif->wmm[ac].cw_max));
+
+		err = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EDCA_UPDATE,
+					  &req, sizeof(req), true);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 int mt7615_mcu_set_dbdc(struct mt7615_dev *dev)
@@ -3418,7 +3426,7 @@ void mt7615_mcu_set_suspend_iter(void *priv, u8 *mac,
 	int i;
 
 	mt7615_mcu_set_bss_pm(phy->dev, vif, suspend);
-	
+
 	mt7615_mcu_set_gtk_rekey(phy->dev, vif, suspend);
 
 	mt7615_mcu_set_suspend_mode(phy->dev, vif, suspend, 1, true);

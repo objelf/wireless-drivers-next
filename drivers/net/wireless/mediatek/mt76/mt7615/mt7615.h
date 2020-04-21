@@ -152,6 +152,13 @@ struct mt7615_vif {
 	u8 scan_seq_num;
 
 	struct mt7615_sta sta;
+
+	struct {
+		u16 cw_min;
+		u16 cw_max;
+		u16 txop;
+		u8 aifs;
+	} wmm[IEEE80211_NUM_ACS];
 };
 
 struct mib_stats {
@@ -386,8 +393,7 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *rates);
 int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
-int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
-		       const struct ieee80211_tx_queue_params *params);
+int mt7615_mcu_set_wmm(struct mt7615_dev *dev, struct ieee80211_vif *vif);
 void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb);
 int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 		       enum mt7615_rdd_cmd cmd, u8 index,
