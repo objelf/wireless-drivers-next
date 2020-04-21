@@ -939,6 +939,7 @@ mt7615_mcu_sta_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	case NL80211_IFTYPE_STATION:
 		basic->conn_type = cpu_to_le32(CONNECTION_INFRA_AP);
 		basic->aid = cpu_to_le16(vif->bss_conf.aid);
+pr_err("%s %d aid = %d\n", __func__, __LINE__, vif->bss_conf.aid);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		basic->conn_type = cpu_to_le32(CONNECTION_IBSS_ADHOC);
@@ -1522,6 +1523,7 @@ mt7615_mcu_uni_add_bss(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 	if (err < 0)
 		return err;
 
+pr_err("%s %d aid = %d\n", __func__, __LINE__, vif->bss_conf.aid);
 	if (!mt7615_firmware_offload(dev))
 		return 0;
 
