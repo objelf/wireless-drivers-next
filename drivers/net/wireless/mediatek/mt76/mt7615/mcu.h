@@ -415,7 +415,7 @@ struct mt7615_mcu_bss_event {
 	u8 bss_idx;
 	u8 is_absent;
 	u8 free_quota;
-	u8 pad;
+	u8 band_idx; /* DBDC band */
 } __packed;
 
 struct mt7615_wow_ctrl_tlv {
