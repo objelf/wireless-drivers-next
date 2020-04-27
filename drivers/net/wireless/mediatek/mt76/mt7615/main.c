@@ -509,6 +509,9 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 		       BSS_CHANGED_BEACON_ENABLED))
 		mt7615_mcu_add_beacon(dev, hw, vif, info->enable_beacon);
 
+	if (changed & BSS_CHANGED_P2P_PS)
+		mt7615_mcu_set_p2p_oppps(hw, vif);
+
 	mutex_unlock(&dev->mt76.mutex);
 }
 
