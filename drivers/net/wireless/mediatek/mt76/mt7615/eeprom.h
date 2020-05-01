@@ -34,12 +34,14 @@ enum mt7615_eeprom_field {
 	MT_EE_TX1_5G_G0_TARGET_POWER =		0x098,
 	MT_EE_2G_RATE_POWER =			0x0be,
 	MT_EE_5G_RATE_POWER =			0x0d5,
+	MT7663_EE_TX0_2G_TARGET_POWER =		0x0e3,
 	MT_EE_EXT_PA_2G_TARGET_POWER =		0x0f2,
 	MT_EE_EXT_PA_5G_TARGET_POWER =		0x0f3,
-	MT7663_EE_TX0_2G_TARGET_POWER =		0x123,
 	MT_EE_TX2_5G_G0_TARGET_POWER =		0x142,
 	MT_EE_TX3_5G_G0_TARGET_POWER =		0x16a,
 	MT7663_EE_HW_CONF1 =			0x1b0,
+	MT7663_EE_TX0_5G_G0_TARGET_POWER =	0x245,
+	MT7663_EE_TX1_5G_G0_TARGET_POWER =	0x2b5,
 
 	MT7615_EE_MAX =				0x3bf,
 	MT7622_EE_MAX =				0x3db,
@@ -108,6 +110,19 @@ mt7615_ext_pa_enabled(struct mt7615_dev *dev, enum nl80211_band band)
 		return !(eep[MT_EE_NIC_CONF_1 + 1] & MT_EE_NIC_CONF_TSSI_5G);
 	else
 		return !(eep[MT_EE_NIC_CONF_1 + 1] & MT_EE_NIC_CONF_TSSI_2G);
+}
+
+static inline int
+mt7615_eeprom_get_power_index(struct mt7615_dev *dev,
+			      struct ieee80211_channel *chan,
+			      u8 chain_idx)
+{
+	if (is_mt7663(&dev->mt76))
+		return mt7663_eeprom_get_target_power_index(dev, chan,
+							    chain_idx);
+	else
+		return mt7615_eeprom_get_target_power_index(dev, chan,
+							    chain_idx);
 }
 
 #endif
