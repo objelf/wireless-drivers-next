@@ -156,6 +156,23 @@ static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
 	dev->phy.chainmask = dev->chainmask;
 }
 
+int mt7615_eeprom_get_power_delta_index(struct mt7615_dev *dev,
+					enum nl80211_band band)
+{
+	/* assume the first rate has the highest power offset */
+	if (is_mt7663(&dev->mt76)) {
+		if (band == NL80211_BAND_2GHZ)
+			return MT_EE_TX0_5G_G0_TARGET_POWER;
+		else
+			return MT7663_EE_5G_RATE_POWER;
+	}
+
+	if (band == NL80211_BAND_2GHZ)
+		return MT_EE_2G_RATE_POWER;
+	else
+		return MT_EE_5G_RATE_POWER;
+}
+
 int mt7663_eeprom_get_target_power_index(struct mt7615_dev *dev,
 					 struct ieee80211_channel *chan,
 					 u8 chain_idx)
