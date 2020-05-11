@@ -526,6 +526,15 @@ struct mt7615_gtk_rekey_tlv {
 	u8 reserverd[3];
 } __packed;
 
+struct mt7615_arpns_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 mode;
+	u8 ips_num;
+	u8 option;
+	u8 pad[1];
+} __packed;
+
 /* offload mcu commands */
 enum {
 	MCU_CMD_START_HW_SCAN = MCU_CE_PREFIX | 0x03,

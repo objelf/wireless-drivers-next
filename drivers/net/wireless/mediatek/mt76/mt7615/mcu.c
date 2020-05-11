@@ -3601,6 +3601,32 @@ mt7615_mcu_set_gtk_rekey(struct mt7615_dev *dev,
 				   &req, sizeof(req), true);
 }
 
+int mt7615_mcu_set_arp_ip_filter(struct mt7615_dev *dev,
+				 struct ieee80211_vif *vif,
+				 bool suspend)
+{
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct {
+		struct {
+			u8 bss_idx;
+			u8 pad[3];
+		} __packed hdr;
+		struct mt7615_arpns_tlv arpns_tlv;
+	} req = {
+		.hdr = {
+			.bss_idx = mvif->idx,
+		},
+		.arpns_tlv = {
+			.tag = cpu_to_le16(UNI_OFFLOAD_OFFLOAD_ARPNS_IPV4),
+			.len = cpu_to_le16(sizeof(struct mt7615_arpns_tlv)),
+			.mode = suspend,
+		},
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_OFFLOAD,
+				   &req, sizeof(req), true);
+}
+
 void mt7615_mcu_set_suspend_iter(void *priv, u8 *mac,
 				 struct ieee80211_vif *vif)
 {
@@ -3613,6 +3639,7 @@ void mt7615_mcu_set_suspend_iter(void *priv, u8 *mac,
 	mt7615_mcu_set_bss_pm(phy->dev, vif, suspend);
 
 	mt7615_mcu_set_gtk_rekey(phy->dev, vif, suspend);
+	mt7615_mcu_set_arp_ip_filter(phy->dev, vif, suspend);
 
 	mt7615_mcu_set_suspend_mode(phy->dev, vif, suspend, 1, true);
 
@@ -3691,6 +3718,55 @@ int mt7615_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 				       MCU_UNI_CMD_OFFLOAD, true);
 }
 #endif /* CONFIG_PM */
+
+int mt7615_mcu_update_arp_ip_filter(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_bss_conf *info)
+{
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	struct mt7615_arpns_tlv *arpns_tlv;
+	struct sk_buff *skb;
+	int i, ips_num;
+	struct {
+		u8 bss_idx;
+		u8 pad[3];
+	} __packed hdr = {
+		.bss_idx = mvif->idx,
+	};
+	struct ipv4_addr {
+		u8 addr[4];
+	} __packed *v4addr;
+
+	if (!mt7615_firmware_offload(dev))
+		return 0;
+
+	ips_num = info->arp_addr_cnt;
+	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL,
+				 sizeof(hdr) + sizeof(*arpns_tlv) +
+				 ips_num * sizeof(*v4addr));
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put_data(skb, &hdr, sizeof(hdr));
+	arpns_tlv = (struct mt7615_arpns_tlv *)skb_put(skb, sizeof(*arpns_tlv));
+	arpns_tlv->tag = cpu_to_le16(UNI_OFFLOAD_OFFLOAD_ARPNS_IPV4);
+	arpns_tlv->len = cpu_to_le16(sizeof(*arpns_tlv));
+	arpns_tlv->mode = 2; /* update purpose */
+	arpns_tlv->option = 1;
+	arpns_tlv->ips_num = ips_num;
+
+	v4addr = (struct ipv4_addr *)skb_put(skb, ips_num * sizeof(*v4addr));
+	for (i = 0; i < ips_num; i++, v4addr++) {
+		dev_dbg(dev->mt76.dev, "addr[%d]: 0x%X (%pI4)\n", i,
+			info->arp_addr_list[i], &info->arp_addr_list[i]);
+
+		memcpy(v4addr->addr, &info->arp_addr_list[i], sizeof(v4addr->addr));
+	}
+
+	return __mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				       MCU_UNI_CMD_OFFLOAD, true);
+}
 
 int mt7615_mcu_set_p2p_oppps(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif)

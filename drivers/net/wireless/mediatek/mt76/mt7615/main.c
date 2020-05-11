@@ -509,6 +509,9 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 		       BSS_CHANGED_BEACON_ENABLED))
 		mt7615_mcu_add_beacon(dev, hw, vif, info->enable_beacon);
 
+	if (changed & BSS_CHANGED_ARP_FILTER)
+		mt7615_mcu_update_arp_ip_filter(hw, vif, info);
+
 	mutex_unlock(&dev->mt76.mutex);
 }
 
