@@ -1440,6 +1440,7 @@ mt7615_mcu_uni_add_dev(struct mt7615_dev *dev,
 			.bmc_tx_wlan_idx = cpu_to_le16(mvif->sta.wcid.idx),
 			.sta_idx = cpu_to_le16(mvif->sta.wcid.idx),
 			.conn_state = 1,
+			.conn_type = cpu_to_le32(CONNECTION_INFRA_STA),
 		},
 	};
 	int err, idx, cmd, len;
