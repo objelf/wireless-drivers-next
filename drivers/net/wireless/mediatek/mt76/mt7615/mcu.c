@@ -2475,21 +2475,77 @@ mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 				   &req, sizeof(req), true);
 }
 
+static int
+mt7615_mcu_set_bss_uapsd(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+			 u8 uapsd_map)
+{
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct {
+		struct {
+			u8 bss_idx;
+			u8 pad[3];
+		} __packed hdr;
+		struct uapsd_tlv {
+			__le16 tag;
+			__le16 len;
+			u8 d_ac_map; /* delivery ac map:
+				      * BE: BIT(0)
+				      * BK: BIT(1)
+				      * VI: BIT(2)
+				      * VO: BIT(3)
+				      */
+			u8 t_ac_map; /* trigger ac map */
+			u8 pad[2];
+		} __packed uapsd;
+		struct qos_tlv {
+			__le16 tag;
+			__le16 len;
+			u8 qos;
+			u8 pad[3];
+		} __packed qos;
+	} __packed req = {
+		.hdr = {
+			.bss_idx = mvif->idx,
+		},
+		.uapsd = {
+			.tag = cpu_to_le16(UNI_BSS_INFO_UAPSD),
+			.len = cpu_to_le16(sizeof(struct uapsd_tlv)),
+			.d_ac_map = uapsd_map,
+			.t_ac_map = uapsd_map,
+		},
+		.qos = {
+			.tag = cpu_to_le16(UNI_BSS_INFO_QBSS),
+			.len = cpu_to_le16(sizeof(struct qos_tlv)),
+			.qos = vif->bss_conf.qos,
+		},
+	};
+
+	if (vif->type != NL80211_IFTYPE_STATION ||
+	    !mt7615_firmware_offload(dev))
+		return 0;
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_BSS_INFO_UPDATE,
+				   &req, sizeof(req), true);
+}
+
 int mt7615_mcu_set_tx(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	u8 uapsd_map = 0;
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		struct mt7615_vif_wmm *wmm = &mvif->wmm[i];
 		int err, queue;
 
+		uapsd_map |= (wmm->uapsd << i);
 		queue = i + mvif->wmm_idx * MT7615_MAX_WMM_SETS;
-		err = mt7615_mcu_set_wmm(dev, queue, &mvif->wmm[i]);
+		err = mt7615_mcu_set_wmm(dev, queue, wmm);
 		if (err < 0)
 			return err;
 	}
 
-	return 0;
+	return mt7615_mcu_set_bss_uapsd(dev, vif, uapsd_map);
 }
 
 int mt7615_mcu_set_dbdc(struct mt7615_dev *dev)
