@@ -179,6 +179,9 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 		mt76_txq_init(&dev->mt76, vif->txq);
 	}
 
+	if (mt7615_firmware_offload(dev))
+		vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
+
 	ret = mt7615_mcu_add_dev_info(dev, vif, true);
 out:
 	mutex_unlock(&dev->mt76.mutex);

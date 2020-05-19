@@ -289,6 +289,10 @@ mt76_phy_init(struct mt76_dev *dev, struct ieee80211_hw *hw)
 	wiphy->available_antennas_rx = dev->phy.antenna_mask;
 
 	hw->txq_data_size = sizeof(struct mt76_txq);
+	hw->uapsd_queues = IEEE80211_WMM_IE_STA_QOSINFO_AC_VO |
+			   IEEE80211_WMM_IE_STA_QOSINFO_AC_VI |
+			   IEEE80211_WMM_IE_STA_QOSINFO_AC_BK |
+			   IEEE80211_WMM_IE_STA_QOSINFO_AC_BE;
 
 	if (!hw->max_tx_fragments)
 		hw->max_tx_fragments = 16;
