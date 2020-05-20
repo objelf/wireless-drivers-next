@@ -927,6 +927,23 @@ mt7615_mcu_sta_ht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 }
 
 static void
+mt7615_mcu_sta_uapsd(struct sk_buff *skb, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta)
+{
+	struct sta_rec_uapsd *uapsd;
+	struct tlv *tlv;
+
+	if (vif->type != NL80211_IFTYPE_AP || !sta->wme)
+		return;
+
+	tlv = mt7615_mcu_add_tlv(skb, STA_REC_APPS, sizeof(*uapsd));
+	uapsd = (struct sta_rec_uapsd *)tlv;
+	uapsd->dac_map = sta->uapsd_queues;
+	uapsd->tac_map = sta->uapsd_queues;
+	uapsd->max_sp = sta->max_sp;
+}
+
+static void
 mt7615_mcu_wtbl_ba_tlv(struct sk_buff *skb,
 		       struct ieee80211_ampdu_params *params,
 		       bool enable, bool tx, void *sta_wtbl,
@@ -1188,8 +1205,10 @@ mt7615_mcu_wtbl_sta_add(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		return PTR_ERR(sskb);
 
 	mt7615_mcu_sta_basic_tlv(sskb, vif, sta, enable);
-	if (enable && sta)
+	if (enable && sta) {
 		mt7615_mcu_sta_ht_tlv(sskb, sta);
+		mt7615_mcu_sta_uapsd(sskb, vif, sta);
+	}
 
 	wtbl_hdr = mt7615_mcu_alloc_wtbl_req(dev, msta, WTBL_RESET_AND_SET,
 					     NULL, &wskb);
@@ -1285,8 +1304,10 @@ mt7615_mcu_add_sta_cmd(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		return PTR_ERR(skb);
 
 	mt7615_mcu_sta_basic_tlv(skb, vif, sta, enable);
-	if (enable && sta)
+	if (enable && sta) {
 		mt7615_mcu_sta_ht_tlv(skb, sta);
+		mt7615_mcu_sta_uapsd(skb, vif, sta);
+	}
 
 	sta_wtbl = mt7615_mcu_add_tlv(skb, STA_REC_WTBL, sizeof(struct tlv));
 
