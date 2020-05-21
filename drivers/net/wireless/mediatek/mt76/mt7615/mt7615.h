@@ -146,6 +146,20 @@ struct mt7615_sta {
 	u8 rate_probe;
 };
 
+#define WMM_AIFS_SET	BIT(0)
+#define WMM_CW_MIN_SET	BIT(1)
+#define WMM_CW_MAX_SET	BIT(2)
+#define WMM_TXOP_SET	BIT(3)
+#define WMM_PARAM_SET	(WMM_AIFS_SET | WMM_CW_MIN_SET | \
+			 WMM_CW_MAX_SET | WMM_TXOP_SET)
+struct mt7615_vif_wmm {
+	u16 cw_min;
+	u16 cw_max;
+	u16 txop;
+	u8 aifs;
+	u8 uapsd;
+};
+
 struct mt7615_vif {
 	u8 idx;
 	u8 omac_idx;
@@ -153,6 +167,7 @@ struct mt7615_vif {
 	u8 wmm_idx;
 	u8 scan_seq_num;
 
+	struct mt7615_vif_wmm wmm[IEEE80211_NUM_ACS];
 	struct mt7615_sta sta;
 };
 
@@ -410,8 +425,7 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *rates);
 int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
-int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
-		       const struct ieee80211_tx_queue_params *params);
+int mt7615_mcu_set_tx(struct mt7615_dev *dev, struct ieee80211_vif *vif);
 void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb);
 int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 		       enum mt7615_rdd_cmd cmd, u8 index,
