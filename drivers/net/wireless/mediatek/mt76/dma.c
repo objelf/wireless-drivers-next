@@ -576,7 +576,7 @@ mt76_dma_init(struct mt76_dev *dev)
 
 	init_dummy_netdev(&dev->napi_dev);
 
-	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++) {
+	for (i = 0; i < ARRAY_SIZE(dev->q_rx) && dev->q_rx[i].desc; i++) {
 		netif_napi_add(&dev->napi_dev, &dev->napi[i], mt76_dma_rx_poll,
 			       64);
 		mt76_dma_rx_fill(dev, &dev->q_rx[i]);
