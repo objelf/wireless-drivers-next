@@ -2504,6 +2504,9 @@ mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 	if (wmm->cw_max)
 		req.cw_max = cpu_to_le16(fls(wmm->cw_max));
 
+pr_err("%s %d queue = %d cw_min = %d cw_max = %d aifs = %d\n",
+	__func__, __LINE__, queue,  wmm->cw_min, wmm->cw_max, wmm->aifs);
+
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EDCA_UPDATE,
 				   &req, sizeof(req), true);
 }
@@ -2555,7 +2558,7 @@ mt7615_mcu_set_bss_uapsd(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 
 	if (!mt7615_firmware_offload(dev))
 		return 0;
-
+pr_err("%s %d qos = %d d_ac_map = 0x%x, t_ac_map = 0x%x\n", __func__, __LINE__, vif->bss_conf.qos, uapsd_map, uapsd_map);
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_BSS_INFO_UPDATE,
 				   &req, sizeof(req), true);
 }
@@ -2578,6 +2581,7 @@ int mt7615_mcu_set_tx(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 			return err;
 	}
 
+pr_err("%s %d uapsd_map = 0x%x\n", __func__, __LINE__, uapsd_map);
 	return mt7615_mcu_set_bss_uapsd(dev, vif, uapsd_map);
 }
 
