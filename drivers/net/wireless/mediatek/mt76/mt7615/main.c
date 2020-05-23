@@ -405,7 +405,8 @@ mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	mvif->wmm[queue].aifs = params->aifs;
 	mvif->wmm[queue].txop = params->txop;
 	mvif->wmm[queue].uapsd = params->uapsd;
-
+pr_err("%s %d queue = %d uapsd = %d cw_min = %d cw_max = %d aifs = %d\n",
+	__func__, __LINE__, queue, params->uapsd, params->cw_min, params->cw_max, params->aifs);
 	return 0;
 }
 
