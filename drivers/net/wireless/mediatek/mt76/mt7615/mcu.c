@@ -1339,6 +1339,7 @@ mt7615_mcu_add_sta_cmd(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	mt7615_mcu_sta_basic_tlv(skb, vif, sta, enable);
 	if (enable && sta) {
 		mt7615_mcu_sta_ht_tlv(skb, sta);
+pr_err("%s %d call mt7615_mcu_sta_uapsd\n", __func__, __LINE__);
 		mt7615_mcu_sta_uapsd(skb, vif, sta);
 	}
 
@@ -2576,10 +2577,15 @@ mt7615_mcu_set_bss_uapsd(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			.qos = vif->bss_conf.qos,
 		},
 	};
-
+#if 0
 	if (vif->type != NL80211_IFTYPE_STATION ||
 	    !mt7615_firmware_offload(dev))
 		return 0;
+#endif
+
+	if (!mt7615_firmware_offload(dev))
+		return 0;
+
 pr_err("%s %d qos = %d d_ac_map = 0x%x, t_ac_map = 0x%x\n", __func__, __LINE__, vif->bss_conf.qos, uapsd_map, uapsd_map);
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_BSS_INFO_UPDATE,
 				   &req, sizeof(req), true);
