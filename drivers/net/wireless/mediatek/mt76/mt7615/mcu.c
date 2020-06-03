@@ -495,6 +495,11 @@ mt7615_mcu_rx_unsolicited_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	case MCU_EVENT_DBG_MSG:
 		mt7615_mcu_debug_msg_event(dev, skb);
 		break;
+	case MCU_EVENT_CSA_DONE:
+		ieee80211_iterate_active_interfaces_atomic(dev->mt76.hw,
+				IEEE80211_IFACE_ITER_RESUME_ALL,
+				mt7615_mcu_csa_finish, dev);
+		break;
 	default:
 		break;
 	}
@@ -515,6 +520,7 @@ void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	    rxd->eid == MCU_EVENT_SCAN_DONE ||
 	    rxd->eid == MCU_EVENT_DBG_MSG ||
 	    rxd->eid == MCU_EVENT_ROC ||
+	    rxd->eid == MCU_EVENT_CSA_DONE ||
 	    !rxd->seq)
 		mt7615_mcu_rx_unsolicited_event(dev, skb);
 	else
