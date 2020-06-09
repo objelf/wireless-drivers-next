@@ -304,7 +304,11 @@ mt7615_queue_key_update(struct mt7615_dev *dev, enum set_key_cmd cmd,
 	wd->key.cmd = cmd;
 
 	list_add_tail(&wd->node, &dev->wd_head);
-	queue_work(dev->mt76.usb.wq, &dev->wtbl_work);
+
+	if (mt76_is_usb(&dev->mt76))
+		queue_work(dev->mt76.usb.wq, &dev->wtbl_work);
+	else if (mt76_is_sdio(&dev->mt76))
+		queue_work(dev->mt76.sdio.wq, &dev->wtbl_work);
 
 	return 0;
 }
@@ -357,7 +361,8 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	mt76_wcid_key_setup(&dev->mt76, wcid,
 			    cmd == SET_KEY ? key : NULL);
 
-	if (mt76_is_usb(&dev->mt76))
+	if (mt76_is_usb(&dev->mt76) ||
+	    mt76_is_sdio(&dev->mt76))
 		return mt7615_queue_key_update(dev, cmd, msta, key);
 
 	return mt7615_mac_wtbl_set_key(dev, wcid, key, cmd);
