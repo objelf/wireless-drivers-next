@@ -158,6 +158,7 @@ struct btmtksdio_dev {
 	struct sdio_func *func;
 	struct device *dev;
 
+	struct work_struct irq_work;
 	struct work_struct tx_work;
 	unsigned long tx_state;
 	struct sk_buff_head txq;
@@ -477,28 +478,21 @@ err_kfree_skb:
 	return err;
 }
 
-static void btmtksdio_interrupt(struct sdio_func *func)
+static void btmtksdio_irq_work(struct work_struct *work)
 {
-	struct btmtksdio_dev *bdev = sdio_get_drvdata(func);
+	struct btmtksdio_dev *bdev = container_of(work, struct btmtksdio_dev,
+						  irq_work);
 	u32 int_status;
 	u16 rx_size;
-
-	/* It is required that the host gets ownership from the device before
-	 * accessing any register, however, if SDIO host is not being released,
-	 * a potential deadlock probably happens in a circular wait between SDIO
-	 * IRQ work and PM runtime work. So, we have to explicitly release SDIO
-	 * host here and claim again after the PM runtime work is all done.
-	 */
-	sdio_release_host(bdev->func);
 
 	pm_runtime_get_sync(bdev->dev);
 
 	sdio_claim_host(bdev->func);
 
 	/* Disable interrupt */
-	sdio_writel(func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
+	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
 
-	int_status = sdio_readl(func, MTK_REG_CHISR, NULL);
+	int_status = sdio_readl(bdev->func, MTK_REG_CHISR, NULL);
 
 	/* Ack an interrupt as soon as possible before any operation on
 	 * hardware.
@@ -509,7 +503,7 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 	 * not be raised again but there is still pending data in the hardware
 	 * FIFO.
 	 */
-	sdio_writel(func, int_status, MTK_REG_CHISR, NULL);
+	sdio_writel(bdev->func, int_status, MTK_REG_CHISR, NULL);
 
 	if (unlikely(!int_status))
 		bt_dev_err(bdev->hdev, "CHISR is 0");
@@ -530,10 +524,19 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 	}
 
 	/* Enable interrupt */
-	sdio_writel(func, C_INT_EN_SET, MTK_REG_CHLPCR, 0);
+	sdio_writel(bdev->func, C_INT_EN_SET, MTK_REG_CHLPCR, 0);
+
+	sdio_release_host(bdev->func);
 
 	pm_runtime_mark_last_busy(bdev->dev);
 	pm_runtime_put_autosuspend(bdev->dev);
+}
+
+static void btmtksdio_interrupt(struct sdio_func *func)
+{
+	struct btmtksdio_dev *bdev = sdio_get_drvdata(func);
+
+	schedule_work(&bdev->irq_work);
 }
 
 static int btmtksdio_open(struct hci_dev *hdev)
@@ -629,6 +632,8 @@ static int btmtksdio_close(struct hci_dev *hdev)
 	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
 
 	sdio_release_irq(bdev->func);
+
+	cancel_work_sync(&bdev->irq_work);
 
 	/* Return ownership to the device */
 	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, NULL);
@@ -956,6 +961,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	bdev->func = func;
 
 	INIT_WORK(&bdev->tx_work, btmtksdio_tx_work);
+	INIT_WORK(&bdev->irq_work, btmtksdio_irq_work);
 	skb_queue_head_init(&bdev->txq);
 
 	/* Initialize and register HCI device */
