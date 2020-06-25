@@ -11,9 +11,9 @@
 		     + __GNUC_PATCHLEVEL__)
 
 /* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145 */
-#if GCC_VERSION < 40800
-# error Sorry, your compiler is too old - please upgrade it.
-#endif
+//#if GCC_VERSION < 40800
+//# error Sorry, your compiler is too old - please upgrade it.
+//#endif
 
 /* Optimization barrier */
 

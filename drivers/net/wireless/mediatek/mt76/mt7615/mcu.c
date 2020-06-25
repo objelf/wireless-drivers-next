@@ -1863,16 +1863,22 @@ int mt7615_driver_own(struct mt7615_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	u32 addr;
-
+	bool retry = false;
+retry:
 	addr = is_mt7663(mdev) ? MT_PCIE_DOORBELL_PUSH : MT_CFG_LPCR_HOST;
 	mt76_wr(dev, addr, MT_CFG_LPCR_HOST_DRV_OWN);
 
 	mt7622_trigger_hif_int(dev, true);
 
 	addr = is_mt7663(mdev) ? MT_CONN_HIF_ON_LPCTL : MT_CFG_LPCR_HOST;
-	if (!mt76_poll_msec(dev, addr, MT_CFG_LPCR_HOST_FW_OWN, 0, 3000)) {
+	if (!mt76_poll_msec(dev, addr, MT_CFG_LPCR_HOST_FW_OWN, 0, 300)) {
 		dev_err(dev->mt76.dev, "Timeout for driver own\n");
-		return -EIO;
+		if (!retry) {
+			retry = true;
+			goto retry;
+		} else {
+			return -EIO;
+		}
 	}
 
 	mt7622_trigger_hif_int(dev, false);
