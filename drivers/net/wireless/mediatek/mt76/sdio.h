@@ -95,6 +95,8 @@
 #define MCR_WTQCR6			0x0148
 #define MCR_WTQCR7			0x014C
 #define MCR_WTQCR(x)                   (0x130 + 4 * (x))
+#define TXQ_CNT_L			GENMASK(15, 0)
+#define TXQ_CNT_H			GENMASK(31, 16)
 
 #define MCR_SWPCDBGR			0x0154
 

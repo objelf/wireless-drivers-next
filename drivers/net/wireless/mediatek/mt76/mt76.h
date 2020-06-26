@@ -455,6 +455,11 @@ struct mt76_sdio {
 	unsigned long state;
 
 	struct sdio_func *func;
+
+	atomic_t pse_data_pages;
+	atomic_t pse_cmd_pages;
+	atomic_t ple_data_pages;
+	int pp_extra_bytes;
 };
 
 struct mt76_mmio {

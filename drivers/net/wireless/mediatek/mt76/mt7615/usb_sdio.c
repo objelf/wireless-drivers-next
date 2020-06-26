@@ -24,6 +24,7 @@ const u32 mt7663_usb_sdio_reg_map[] = {
 	[MT_TOP_MISC_BASE]	= 0x81020000,
 	[MT_PLE_BASE]		= 0x82060000,
 	[MT_PSE_BASE]		= 0x82068000,
+	[MT_PP_BASE]		= 0x8206c000,
 	[MT_WTBL_BASE_ADDR]	= 0x820e0000,
 	[MT_CFG_BASE]		= 0x820f0000,
 	[MT_AGG_BASE]		= 0x820f2000,
@@ -47,7 +48,10 @@ mt7663_usb_sdio_write_txwi(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	__le32 *txwi;
-	int pid;
+	int pid, pse_pages;
+	atomic_t *pse_data_pages = &dev->mt76.sdio.pse_data_pages;
+	atomic_t *ple_data_pages = &dev->mt76.sdio.ple_data_pages;
+	int pp_extra_bytes = dev->mt76.sdio.pp_extra_bytes;
 
 	if (!wcid)
 		wcid = &dev->mt76.global_wcid;
@@ -57,6 +61,14 @@ mt7663_usb_sdio_write_txwi(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 	txwi = (__le32 *)(skb->data - MT_USB_TXD_SIZE);
 	memset(txwi, 0, MT_USB_TXD_SIZE);
 	mt7615_mac_write_txwi(dev, txwi, skb, wcid, sta, pid, key, false);
+
+	if (mt76_is_sdio(&dev->mt76) &&
+	    test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state)) {
+		pse_pages = mt7615_get_pse_pages(skb->len, pp_extra_bytes);
+		atomic_sub(pse_pages, pse_data_pages);
+		atomic_sub(1, ple_data_pages);
+	}
+
 	skb_push(skb, MT_USB_TXD_SIZE);
 }
 
