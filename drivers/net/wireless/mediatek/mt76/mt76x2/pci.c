@@ -139,6 +139,7 @@ static int __maybe_unused
 mt76x2e_resume(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	int i, err;
 
 	err = pci_set_power_state(pdev, PCI_D0);
@@ -154,7 +155,7 @@ mt76x2e_resume(struct pci_dev *pdev)
 	napi_enable(&mdev->tx_napi);
 	napi_schedule(&mdev->tx_napi);
 
-	return 0;
+	return mt76x2_resume_device(dev);
 }
 
 MODULE_DEVICE_TABLE(pci, mt76x2e_device_table);
