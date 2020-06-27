@@ -845,9 +845,10 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func)
 
 	INIT_WORK(&sdio->stat_work, mt76s_tx_status_data);
 
+	spin_lock_init(&sdio->sched.lock);
+	dev->queue_ops = &sdio_queue_ops;
 	dev->bus = &mt76s_ops;
 	dev->sdio.func = func;
-	dev->queue_ops = &sdio_queue_ops;
 
 	return mt76s_hw_init(dev, func);
 }

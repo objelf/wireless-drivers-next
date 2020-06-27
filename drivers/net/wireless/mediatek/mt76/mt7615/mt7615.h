@@ -70,8 +70,6 @@
 #define MT7615_MAX_SCHED_SCAN_SSID	10
 #define MT7615_MAX_SCAN_MATCH		16
 
-#define	MT_PSE_PAGE_SZ			128
-
 struct mt7615_vif;
 struct mt7615_sta;
 struct mt7615_dfs_pulse;
@@ -537,11 +535,6 @@ static inline u8 mt7615_lmac_mapping(struct mt7615_dev *dev, u8 ac)
 		return MT_LMAC_AC01; /* BE */
 
 	return lmac_queue_map[ac];
-}
-
-static inline int mt7615_get_pse_pages(int pkt_len, int extra_pp_len)
-{
-	return (pkt_len + extra_pp_len + MT_PSE_PAGE_SZ - 1) / MT_PSE_PAGE_SZ;
 }
 
 void mt7615_dma_reset(struct mt7615_dev *dev);

@@ -64,7 +64,8 @@ mt7663_usb_sdio_write_txwi(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 
 	if (mt76_is_sdio(&dev->mt76) &&
 	    test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state)) {
-		pse_pages = mt7615_get_pse_pages(skb->len, pp_extra_bytes);
+		pse_pages = DIV_ROUND_UP(skb->len + pp_extra_bytes,
+					 MT_PSE_PAGE_SZ);
 		atomic_sub(pse_pages, pse_data_pages);
 		atomic_sub(1, ple_data_pages);
 	}

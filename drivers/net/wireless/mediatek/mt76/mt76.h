@@ -460,6 +460,14 @@ struct mt76_sdio {
 	atomic_t pse_cmd_pages;
 	atomic_t ple_data_pages;
 	int pp_extra_bytes;
+
+	struct {
+		spinlock_t lock;
+		u32 pse_data_quota;
+		u32 ple_data_quota;
+		u32 pse_mcu_quota;
+		int deficit;
+	} sched;
 };
 
 struct mt76_mmio {

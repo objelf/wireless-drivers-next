@@ -36,7 +36,8 @@ mt7663s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	mt7615_mcu_fill_msg(dev, skb, cmd, &seq);
 
 	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state)) {
-		pse_pages = mt7615_get_pse_pages(skb->len, pp_extra_bytes);
+		pse_pages = DIV_ROUND_UP(skb->len + pp_extra_bytes,
+					 MT_PSE_PAGE_SZ);
 		atomic_sub(pse_pages, pse_cmd_pages);
 
 		ret = readx_poll_timeout(mt7663s_read_pse_pages, mdev, pse_pages,
@@ -143,12 +144,6 @@ int mt7663s_mcu_init(struct mt7615_dev *dev)
 		.mcu_rr = mt7615_mcu_reg_rr,
 		.mcu_wr = mt7615_mcu_reg_wr,
 	};
-	u16 data_max_pse_pages, cmd_max_pse_pages, data_max_ple_pages;
-	u32 txdwcnt;
-	atomic_t *pse_data_pages = &dev->mt76.sdio.pse_data_pages;
-	atomic_t *ple_data_pages = &dev->mt76.sdio.ple_data_pages;
-	atomic_t *pse_cmd_pages = &dev->mt76.sdio.pse_cmd_pages;
-
 	int ret;
 
 	ret = mt7663s_driver_own(dev);
@@ -168,17 +163,6 @@ int mt7663s_mcu_init(struct mt7615_dev *dev)
 	ret = __mt7663_load_firmware(dev);
 	if (ret)
 		return ret;
-
-	data_max_pse_pages = mt76_rr(dev, MT_PSE_PG_HIF0_GROUP);
-	cmd_max_pse_pages = mt76_rr(dev, MT_PSE_PG_HIF1_GROUP);
-	data_max_ple_pages = mt76_rr(dev, MT_PLE_PG_HIF0_GROUP);
-
-	txdwcnt = mt76_rr(dev, MT_PP_TXDWCNT);
-	dev->mt76.sdio.pp_extra_bytes = FIELD_GET(MT_PP_TXDWCNT_TX1_ADD_DW_CNT,
-						  txdwcnt) << 2;
-	atomic_set(pse_data_pages, data_max_pse_pages);
-	atomic_set(ple_data_pages, data_max_ple_pages);
-	atomic_set(pse_cmd_pages, cmd_max_pse_pages);
 
 	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 
