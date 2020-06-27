@@ -54,13 +54,34 @@ static void mt7663s_init_work(struct work_struct *work)
 	mt7615_check_offload_capability(dev);
 }
 
+static int mt7663s_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+				  enum mt76_txq_id qid, struct mt76_wcid *wcid,
+				  struct ieee80211_sta *sta,
+				  struct mt76_tx_info *tx_info)
+{
+	struct mt76_sdio *sdio = &mdev->sdio;
+	struct sk_buff *skb = tx_info->skb;
+	int len;
+
+	mt7663_usb_sdio_tx_prepare_skb(mdev, txwi_ptr, qid, wcid, sta,
+				       tx_info);
+	len = DIV_ROUND_UP(skb->len + sdio->sched.deficit, MT_PSE_PAGE_SZ);
+
+	spin_lock_bh(&sdio->sched.lock);
+	sdio->sched.pse_data_quota -= len;
+	sdio->sched.ple_data_quota--;
+	spin_unlock_bh(&sdio->sched.lock);
+
+	return mt76_skb_adjust_pad(skb);
+}
+
 static int mt7663s_probe(struct sdio_func *func,
 			      const struct sdio_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = MT_USB_TXD_SIZE,
 		.drv_flags = MT_DRV_RX_DMA_HDR | MT_DRV_HW_MGMT_TXQ,
-		.tx_prepare_skb = mt7663_usb_sdio_tx_prepare_skb,
+		.tx_prepare_skb = mt7663s_tx_prepare_skb,
 		.tx_complete_skb = mt7663_usb_sdio_tx_complete_skb,
 		.tx_status_data = mt7663_usb_sdio_tx_status_data,
 		.rx_skb = mt7615_queue_rx_skb,
