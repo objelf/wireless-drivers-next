@@ -15,9 +15,32 @@
 #include "regs.h"
 #include "../sdio.h"
 
-static int mt7663s_read_pse_pages(struct mt76_dev *dev)
+static int mt7663s_mcu_check_sched(struct mt7615_dev *dev, int len)
 {
-	return atomic_read(&dev->sdio.pse_cmd_pages);
+	struct mt76_sdio *sdio = &dev->mt76.sdio;
+	int size, timeout = 100;
+
+	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
+		return 0;
+
+	size = DIV_ROUND_UP(len + sdio->sched.deficit, MT_PSE_PAGE_SZ);
+	do {
+		if (sdio->sched.pse_mcu_quota >= size)
+			break;
+
+		usleep_range(10000, 20000);
+	} while (timeout-- > 0);
+
+	if (!timeout) {
+		dev_err(dev->mt76.dev, "cannot get free pse mcu pages");
+		return -ETIMEDOUT;
+	}
+
+	spin_lock_bh(&sdio->sched.lock);
+	sdio->sched.pse_mcu_quota -= size;
+	spin_unlock_bh(&sdio->sched.lock);
+
+	return 0;
 }
 
 static int
@@ -27,26 +50,14 @@ mt7663s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct sdio_func *func = mdev->sdio.func;
 	struct mt76_sdio *sdio = &mdev->sdio;
-	int ret, seq, len, pse_pages;
-	atomic_t *pse_cmd_pages = &mdev->sdio.pse_cmd_pages;
-	int pp_extra_bytes = dev->mt76.sdio.pp_extra_bytes;
+	int ret, seq, len;
 
 	mt7615_mutex_acquire(dev, &mdev->mcu.mutex);
 
 	mt7615_mcu_fill_msg(dev, skb, cmd, &seq);
-
-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state)) {
-		pse_pages = DIV_ROUND_UP(skb->len + pp_extra_bytes,
-					 MT_PSE_PAGE_SZ);
-		atomic_sub(pse_pages, pse_cmd_pages);
-
-		ret = readx_poll_timeout(mt7663s_read_pse_pages, mdev, pse_pages,
-					 pse_pages > 0, 2000, 1000000);
-		if (ret < 0) {
-			dev_err(mdev->dev, "Cannot get free PSE cmd pages");
-			return -EBUSY;
-		}
-	}
+	ret = mt7663s_mcu_check_sched(dev, skb->len);
+	if (ret)
+		return ret;
 
 	ret = mt76_skb_adjust_pad(skb);
 	if (ret < 0)
