@@ -456,11 +456,6 @@ struct mt76_sdio {
 
 	struct sdio_func *func;
 
-	atomic_t pse_data_pages;
-	atomic_t pse_cmd_pages;
-	atomic_t ple_data_pages;
-	int pp_extra_bytes;
-
 	struct {
 		spinlock_t lock;
 		u32 pse_data_quota;

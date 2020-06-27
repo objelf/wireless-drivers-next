@@ -595,14 +595,14 @@ static int mt76s_tx_add_buff(struct mt76_sdio *sdio, struct sk_buff *skb)
 
 static int mt76s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	atomic_t *pse_data_pages = &dev->sdio.pse_data_pages;
-	atomic_t *ple_data_pages = &dev->sdio.ple_data_pages;
+	struct mt76_sdio *sdio = &dev->sdio;
 	int nframes = 0;
 
 	while (q->first != q->tail) {
 		int err;
 
-		if (atomic_read(pse_data_pages) < 0 || atomic_read(ple_data_pages) < 0)
+		/* check available space in hw queues */
+		if (sdio->sched.pse_data_quota < 0 || sdio->sched.ple_data_quota < 0)
 			break;
 
 		err = mt76s_tx_add_buff(&dev->sdio, q->entry[q->first].skb);
@@ -685,12 +685,35 @@ static void mt76s_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 	wake_up_process(sdio->kthread);
 }
 
+static void mt76s_refill_sched_quota(struct mt76_dev *dev)
+{
+	struct mt76_sdio *sdio = &dev->sdio;
+	u32 data[8];
+	int i;
+
+	for (i = 0 ; i < ARRAY_SIZE(data); i++)
+		data[i] = sdio_readl(sdio->func, MCR_WTQCR(i), 0);
+
+	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
+		return;
+
+	spin_lock_bh(&sdio->sched.lock);
+	sdio->sched.pse_data_quota += FIELD_GET(TXQ_CNT_L, data[0]) + /* BK */
+				      FIELD_GET(TXQ_CNT_H, data[0]) + /* BE */
+				      FIELD_GET(TXQ_CNT_L, data[1]) + /* VI */
+				      FIELD_GET(TXQ_CNT_H, data[1]);  /* VO */
+	sdio->sched.pse_mcu_quota += FIELD_GET(TXQ_CNT_L, data[2]);
+	sdio->sched.ple_data_quota += FIELD_GET(TXQ_CNT_H, data[2]) + /* BK */
+				      FIELD_GET(TXQ_CNT_L, data[3]) + /* BE */
+				      FIELD_GET(TXQ_CNT_H, data[3]) + /* VI */
+				      FIELD_GET(TXQ_CNT_L, data[4]);  /* VO */
+	spin_unlock_bh(&sdio->sched.lock);
+}
+
 static void mt76s_sdio_irq(struct sdio_func *func)
 {
 	struct mt76_dev *dev = sdio_get_drvdata(func);
-	atomic_t *pse_data_pages = &dev->sdio.pse_data_pages;
-	atomic_t *ple_data_pages = &dev->sdio.ple_data_pages;
-	atomic_t *pse_cmd_pages = &dev->sdio.pse_cmd_pages;
+	struct mt76_sdio *sdio = &dev->sdio;
 	u32 intr;
 
 	/* disable interrupt */
@@ -710,33 +733,16 @@ static void mt76s_sdio_irq(struct sdio_func *func)
 
 	if (intr & WHIER_RX0_DONE_INT_EN) {
 		mt76s_rx_work(dev, &dev->q_rx[MT_RXQ_MAIN]);
-		tasklet_schedule(&dev->sdio.rx_tasklet);
+		tasklet_schedule(&sdio->rx_tasklet);
 	}
 
 	if (intr & WHIER_RX1_DONE_INT_EN) {
 		mt76s_rx_work(dev, &dev->q_rx[MT_RXQ_MCU]);
-		tasklet_schedule(&dev->sdio.rx_tasklet);
+		tasklet_schedule(&sdio->rx_tasklet);
 	}
 
 	if (intr & WHIER_TX_DONE_INT_EN) {
-		int i;
-		u32 data[8];
-
-		for (i = 0 ; i < 8 ; i++)
-			data[i] = sdio_readl(func, MCR_WTQCR(i), 0);
-
-		if (test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state)) {
-			atomic_add(FIELD_GET(TXQ_CNT_L, data[0]), pse_data_pages); /* PSE for BK */
-			atomic_add(FIELD_GET(TXQ_CNT_H, data[0]), pse_data_pages); /* PSE for BE */
-			atomic_add(FIELD_GET(TXQ_CNT_L, data[1]), pse_data_pages); /* PSE for VI */
-			atomic_add(FIELD_GET(TXQ_CNT_H, data[1]), pse_data_pages); /* PSE for VO */
-			atomic_add(FIELD_GET(TXQ_CNT_L, data[2]), pse_cmd_pages);  /* CMD */
-			atomic_add(FIELD_GET(TXQ_CNT_H, data[2]), ple_data_pages); /* PLE for BK */
-			atomic_add(FIELD_GET(TXQ_CNT_L, data[3]), ple_data_pages); /* PLE for BE */
-			atomic_add(FIELD_GET(TXQ_CNT_H, data[3]), ple_data_pages); /* PLE for VI */
-			atomic_add(FIELD_GET(TXQ_CNT_L, data[4]), ple_data_pages); /* PLE for VO */
-		}
-
+		mt76s_refill_sched_quota(dev);
 		tasklet_schedule(&dev->tx_tasklet);
 	}
 out:
