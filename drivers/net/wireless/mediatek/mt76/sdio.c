@@ -593,19 +593,43 @@ static int mt76s_tx_add_buff(struct mt76_sdio *sdio, struct sk_buff *skb)
 	return err;
 }
 
-static int mt76s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
+static int mt76s_tx_update_sched(struct mt76_dev *dev, int len)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
+	int size, ret = -EBUSY;
+
+	if (!test_bit(MT76_STATE_RUNNING, &dev->phy.state))
+		return 0;
+
+	size = DIV_ROUND_UP(len + sdio->sched.deficit - dev->drv->txwi_size,
+			    MT_PSE_PAGE_SZ);
+
+	spin_lock(&sdio->sched.lock);
+	if (sdio->sched.pse_data_quota - size > 0 &&
+	    sdio->sched.ple_data_quota > 0) {
+		sdio->sched.pse_data_quota -= size;
+		sdio->sched.ple_data_quota--;
+		ret = 0;
+	}
+	spin_unlock(&sdio->sched.lock);
+
+	return ret;
+}
+
+static int mt76s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
+{
 	int nframes = 0;
 
 	while (q->first != q->tail) {
+		struct sk_buff *skb = q->entry[q->first].skb;
 		int err;
 
 		/* check available space in hw queues */
-		if (sdio->sched.pse_data_quota < 0 || sdio->sched.ple_data_quota < 0)
-			break;
+		err = mt76s_tx_update_sched(dev, skb->len);
+		if (err < 0)
+			return err;
 
-		err = mt76s_tx_add_buff(&dev->sdio, q->entry[q->first].skb);
+		err = mt76s_tx_add_buff(&dev->sdio, skb);
 		if (err) {
 			dev_err(dev->dev, "sdio write failed: %d\n", err);
 			return -EIO;
@@ -697,7 +721,7 @@ static void mt76s_refill_sched_quota(struct mt76_dev *dev)
 	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
 		return;
 
-	spin_lock_bh(&sdio->sched.lock);
+	spin_lock(&sdio->sched.lock);
 	sdio->sched.pse_data_quota += FIELD_GET(TXQ_CNT_L, data[0]) + /* BK */
 				      FIELD_GET(TXQ_CNT_H, data[0]) + /* BE */
 				      FIELD_GET(TXQ_CNT_L, data[1]) + /* VI */
@@ -707,7 +731,7 @@ static void mt76s_refill_sched_quota(struct mt76_dev *dev)
 				      FIELD_GET(TXQ_CNT_L, data[3]) + /* BE */
 				      FIELD_GET(TXQ_CNT_H, data[3]) + /* VI */
 				      FIELD_GET(TXQ_CNT_L, data[4]);  /* VO */
-	spin_unlock_bh(&sdio->sched.lock);
+	spin_unlock(&sdio->sched.lock);
 }
 
 static void mt76s_sdio_irq(struct sdio_func *func)

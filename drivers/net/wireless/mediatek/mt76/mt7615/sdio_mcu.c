@@ -36,9 +36,9 @@ static int mt7663s_mcu_check_sched(struct mt7615_dev *dev, int len)
 		return -ETIMEDOUT;
 	}
 
-	spin_lock_bh(&sdio->sched.lock);
+	spin_lock(&sdio->sched.lock);
 	sdio->sched.pse_mcu_quota -= size;
-	spin_unlock_bh(&sdio->sched.lock);
+	spin_unlock(&sdio->sched.lock);
 
 	return 0;
 }

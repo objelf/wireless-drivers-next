@@ -227,10 +227,10 @@ void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_complete_skb);
 
-void mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-				    enum mt76_txq_id qid, struct mt76_wcid *wcid,
-				    struct ieee80211_sta *sta,
-				    struct mt76_tx_info *tx_info)
+int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+				   enum mt76_txq_id qid, struct mt76_wcid *wcid,
+				   struct ieee80211_sta *sta,
+				   struct mt76_tx_info *tx_info)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct sk_buff *skb = tx_info->skb;
@@ -248,6 +248,10 @@ void mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	}
 
 	mt7663_usb_sdio_write_txwi(dev, wcid, qid, sta, skb);
+	if (mt76_is_usb(mdev))
+		put_unaligned_le32(skb->len, skb_push(skb, sizeof(skb->len)));
+
+	return mt76_skb_adjust_pad(skb);
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_prepare_skb);
 
