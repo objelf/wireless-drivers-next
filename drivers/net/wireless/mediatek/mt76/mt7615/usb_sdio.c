@@ -48,10 +48,7 @@ mt7663_usb_sdio_write_txwi(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	__le32 *txwi;
-	int pid, pse_pages;
-	atomic_t *pse_data_pages = &dev->mt76.sdio.pse_data_pages;
-	atomic_t *ple_data_pages = &dev->mt76.sdio.ple_data_pages;
-	int pp_extra_bytes = dev->mt76.sdio.pp_extra_bytes;
+	int pid;
 
 	if (!wcid)
 		wcid = &dev->mt76.global_wcid;
@@ -61,14 +58,6 @@ mt7663_usb_sdio_write_txwi(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 	txwi = (__le32 *)(skb->data - MT_USB_TXD_SIZE);
 	memset(txwi, 0, MT_USB_TXD_SIZE);
 	mt7615_mac_write_txwi(dev, txwi, skb, wcid, sta, pid, key, false);
-
-	if (mt76_is_sdio(&dev->mt76) &&
-	    test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state)) {
-		pse_pages = DIV_ROUND_UP(skb->len + pp_extra_bytes,
-					 MT_PSE_PAGE_SZ);
-		atomic_sub(pse_pages, pse_data_pages);
-		atomic_sub(1, ple_data_pages);
-	}
 
 	skb_push(skb, MT_USB_TXD_SIZE);
 }
@@ -238,10 +227,10 @@ void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_complete_skb);
 
-int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-				   enum mt76_txq_id qid, struct mt76_wcid *wcid,
-				   struct ieee80211_sta *sta,
-				   struct mt76_tx_info *tx_info)
+void mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+				    enum mt76_txq_id qid, struct mt76_wcid *wcid,
+				    struct ieee80211_sta *sta,
+				    struct mt76_tx_info *tx_info)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct sk_buff *skb = tx_info->skb;
@@ -259,10 +248,6 @@ int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	}
 
 	mt7663_usb_sdio_write_txwi(dev, wcid, qid, sta, skb);
-	if (mt76_is_usb(mdev))
-		put_unaligned_le32(skb->len, skb_push(skb, sizeof(skb->len)));
-
-	return mt76_skb_adjust_pad(skb);
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_prepare_skb);
 

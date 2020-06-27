@@ -662,10 +662,10 @@ u32 mt7615_mcu_reg_rr(struct mt76_dev *dev, u32 offset);
 void mt7615_mcu_reg_wr(struct mt76_dev *dev, u32 offset, u32 val);
 
 /* usb */
-int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-				   enum mt76_txq_id qid, struct mt76_wcid *wcid,
-				   struct ieee80211_sta *sta,
-				   struct mt76_tx_info *tx_info);
+void mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+				    enum mt76_txq_id qid, struct mt76_wcid *wcid,
+				    struct ieee80211_sta *sta,
+				    struct mt76_tx_info *tx_info);
 bool mt7663_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update);
 void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 				     enum mt76_txq_id qid,

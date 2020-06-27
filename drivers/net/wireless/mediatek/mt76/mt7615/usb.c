@@ -54,13 +54,27 @@ static void mt7663u_init_work(struct work_struct *work)
 	mt7615_check_offload_capability(dev);
 }
 
+static int mt7663u_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+				  enum mt76_txq_id qid, struct mt76_wcid *wcid,
+				  struct ieee80211_sta *sta,
+				  struct mt76_tx_info *tx_info)
+{
+	struct sk_buff *skb = tx_info->skb;
+
+	mt7663_usb_sdio_tx_prepare_skb(mdev, txwi_ptr, qid, wcid, sta,
+				       tx_info);
+	put_unaligned_le32(skb->len, skb_push(skb, sizeof(skb->len)));
+
+	return mt76_skb_adjust_pad(skb);
+}
+
 static int mt7663u_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = MT_USB_TXD_SIZE,
 		.drv_flags = MT_DRV_RX_DMA_HDR | MT_DRV_HW_MGMT_TXQ,
-		.tx_prepare_skb = mt7663_usb_sdio_tx_prepare_skb,
+		.tx_prepare_skb = mt7663u_tx_prepare_skb,
 		.tx_complete_skb = mt7663_usb_sdio_tx_complete_skb,
 		.tx_status_data = mt7663_usb_sdio_tx_status_data,
 		.rx_skb = mt7615_queue_rx_skb,
