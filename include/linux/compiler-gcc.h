@@ -10,9 +10,10 @@
 		     + __GNUC_MINOR__ * 100	\
 		     + __GNUC_PATCHLEVEL__)
 
-#if GCC_VERSION < 40600
-# error Sorry, your compiler is too old - please upgrade it.
-#endif
+/* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145 */
+//#if GCC_VERSION < 40800
+//# error Sorry, your compiler is too old - please upgrade it.
+//#endif
 
 /* Optimization barrier */
 
