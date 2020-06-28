@@ -743,27 +743,28 @@ static void mt76s_sdio_irq(struct sdio_func *func)
 	/* disable interrupt */
 	sdio_writel(func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, 0);
 
-	intr = sdio_readl(func, MCR_WHISR, 0);
-	trace_dev_irq(dev, intr, 0);
+	do {
+		intr = sdio_readl(func, MCR_WHISR, 0);
+		trace_dev_irq(dev, intr, 0);
 
+		if (!test_bit(MT76_STATE_INITIALIZED, &dev->phy.state))
+			goto out;
 
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->phy.state))
-		goto out;
+		if (intr & WHIER_RX0_DONE_INT_EN) {
+			mt76s_rx_work(dev, &dev->q_rx[MT_RXQ_MAIN]);
+			tasklet_schedule(&sdio->rx_tasklet);
+		}
 
-	if (intr & WHIER_RX0_DONE_INT_EN) {
-		mt76s_rx_work(dev, &dev->q_rx[MT_RXQ_MAIN]);
-		tasklet_schedule(&sdio->rx_tasklet);
-	}
+		if (intr & WHIER_RX1_DONE_INT_EN) {
+			mt76s_rx_work(dev, &dev->q_rx[MT_RXQ_MCU]);
+			tasklet_schedule(&sdio->rx_tasklet);
+		}
 
-	if (intr & WHIER_RX1_DONE_INT_EN) {
-		mt76s_rx_work(dev, &dev->q_rx[MT_RXQ_MCU]);
-		tasklet_schedule(&sdio->rx_tasklet);
-	}
-
-	if (intr & WHIER_TX_DONE_INT_EN) {
-		mt76s_refill_sched_quota(dev);
-		tasklet_schedule(&dev->tx_tasklet);
-	}
+		if (intr & WHIER_TX_DONE_INT_EN) {
+			mt76s_refill_sched_quota(dev);
+			tasklet_schedule(&dev->tx_tasklet);
+		}
+	} while (intr);
 out:
 	/* enable interrupt */
 	sdio_writel(func, WHLPCR_INT_EN_SET, MCR_WHLPCR, 0);
