@@ -29,9 +29,9 @@ static int mt7663s_init_sched(struct mt7615_dev *dev)
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
 	u32 val;
 
-	sdio->sched.pse_data_quota = mt76_rr(dev, MT_PSE_PG_HIF0_GROUP);
-	sdio->sched.ple_data_quota = mt76_rr(dev, MT_PLE_PG_HIF0_GROUP);
-	sdio->sched.pse_mcu_quota = mt76_rr(dev, MT_PSE_PG_HIF1_GROUP);
+	sdio->sched.pse_data_quota = mt76_get_field(dev, MT_PSE_PG_HIF0_GROUP, MT_HIF0_MIN_QUOTA);
+	sdio->sched.ple_data_quota = mt76_get_field(dev, MT_PLE_PG_HIF0_GROUP, MT_HIF0_MIN_QUOTA);
+	sdio->sched.pse_mcu_quota = mt76_get_field(dev, MT_PSE_PG_HIF1_GROUP, MT_HIF1_MIN_QUOTA);
 	val = mt76_get_field(dev, MT_PP_TXDWCNT, MT_PP_TXDWCNT_TX1_ADD_DW_CNT);
 	sdio->sched.deficit = val << 2;
 
