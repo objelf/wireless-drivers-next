@@ -458,9 +458,9 @@ struct mt76_sdio {
 
 	struct {
 		spinlock_t lock;
-		u32 pse_data_quota;
-		u32 ple_data_quota;
-		u32 pse_mcu_quota;
+		int pse_data_quota;
+		int ple_data_quota;
+		int pse_mcu_quota;
 		int deficit;
 	} sched;
 };
