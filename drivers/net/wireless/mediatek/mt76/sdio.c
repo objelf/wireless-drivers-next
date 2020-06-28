@@ -746,11 +746,6 @@ static void mt76s_sdio_irq(struct sdio_func *func)
 	intr = sdio_readl(func, MCR_WHISR, 0);
 	trace_dev_irq(dev, intr, 0);
 
-	/* Don't ACK read/wirte software interrupt otherwise it probably breaks
-	 * mt76s_wr or mt76s_rr.
-	 */
-	intr &= ~(H2D_SW_INT_READ | H2D_SW_INT_WRITE);
-	sdio_writel(func, intr, MCR_WHISR, 0);
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->phy.state))
 		goto out;
@@ -812,8 +807,8 @@ static int mt76s_hw_init(struct mt76_dev *dev, struct sdio_func *func)
 	if (ret < 0)
 		goto disable_func;
 
-	/* set WHISR as write clear and Rx aggregation number as 1 */
-	ctrl = W_INT_CLR_CTRL | FIELD_PREP(MAX_HIF_RX_LEN_NUM, 1);
+	/* set WHISR as read clear and Rx aggregation number as 1 */
+	ctrl = FIELD_PREP(MAX_HIF_RX_LEN_NUM, 1);
 	sdio_writel(func, ctrl, MCR_WHCR, &ret);
 	if (ret < 0)
 		goto disable_func;
