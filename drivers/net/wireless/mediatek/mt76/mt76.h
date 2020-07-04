@@ -446,7 +446,7 @@ struct mt76_usb {
 	} mcu;
 };
 
-#define MT76_SDIO_RX_QUOTA	64
+#define MT76_SDIO_RX_QUOTA	32
 struct mt76_sdio {
 	struct tasklet_struct rx_tasklet;
 

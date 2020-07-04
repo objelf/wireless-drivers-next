@@ -657,6 +657,33 @@ static int mt76s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 	return nframes;
 }
 
+static void mt76s_refill_sched_quota(struct mt76_dev *dev)
+{
+	struct mt76_sdio *sdio = &dev->sdio;
+	u32 data[8];
+	int i;
+
+	sdio_claim_host(sdio->func);
+	for (i = 0 ; i < ARRAY_SIZE(data); i++)
+		data[i] = sdio_readl(sdio->func, MCR_WTQCR(i), 0);
+	sdio_release_host(sdio->func);
+
+	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
+		return;
+
+	mutex_lock(&sdio->sched.lock);
+	sdio->sched.pse_data_quota += FIELD_GET(TXQ_CNT_L, data[0]) + /* BK */
+				      FIELD_GET(TXQ_CNT_H, data[0]) + /* BE */
+				      FIELD_GET(TXQ_CNT_L, data[1]) + /* VI */
+				      FIELD_GET(TXQ_CNT_H, data[1]);  /* VO */
+	sdio->sched.pse_mcu_quota += FIELD_GET(TXQ_CNT_L, data[2]);
+	sdio->sched.ple_data_quota += FIELD_GET(TXQ_CNT_H, data[2]) + /* BK */
+				      FIELD_GET(TXQ_CNT_L, data[3]) + /* BE */
+				      FIELD_GET(TXQ_CNT_H, data[3]) + /* VI */
+				      FIELD_GET(TXQ_CNT_L, data[4]);  /* VO */
+	mutex_unlock(&sdio->sched.lock);
+}
+
 static int mt76s_kthread_run(void *data)
 {
 	struct mt76_dev *dev = data;
@@ -678,6 +705,7 @@ static int mt76s_kthread_run(void *data)
 			nframes += ret;
 		}
 
+		mt76s_refill_sched_quota(dev);
 		for (i = 0; i < MT_TXQ_MCU_WA; i++) {
 			ret = mt76s_tx_run_queue(dev, dev->q_tx[i].q);
 			if (ret < 0) {
@@ -754,49 +782,27 @@ static void mt76s_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 	wake_up_process(sdio->kthread);
 }
 
-static void mt76s_refill_sched_quota(struct mt76_dev *dev, u32 *data)
-{
-	struct mt76_sdio *sdio = &dev->sdio;
-
-	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
-		return;
-
-	mutex_lock(&sdio->sched.lock);
-	sdio->sched.pse_data_quota += FIELD_GET(TXQ_CNT_L, data[0]) + /* BK */
-				      FIELD_GET(TXQ_CNT_H, data[0]) + /* BE */
-				      FIELD_GET(TXQ_CNT_L, data[1]) + /* VI */
-				      FIELD_GET(TXQ_CNT_H, data[1]);  /* VO */
-	sdio->sched.pse_mcu_quota += FIELD_GET(TXQ_CNT_L, data[2]);
-	sdio->sched.ple_data_quota += FIELD_GET(TXQ_CNT_H, data[2]) + /* BK */
-				      FIELD_GET(TXQ_CNT_L, data[3]) + /* BE */
-				      FIELD_GET(TXQ_CNT_H, data[3]) + /* VI */
-				      FIELD_GET(TXQ_CNT_L, data[4]);  /* VO */
-	mutex_unlock(&sdio->sched.lock);
-}
-
 static void mt76s_sdio_irq(struct sdio_func *func)
 {
 	struct mt76_dev *dev = sdio_get_drvdata(func);
 	struct mt76_sdio *sdio = &dev->sdio;
-	struct mt76s_intr intr;
+	u32 intr;
 
 	/* disable interrupt */
 	sdio_writel(func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, 0);
 
-	sdio_readsb(func, &intr, MCR_WHISR, sizeof(struct mt76s_intr));
-
-	trace_dev_irq(dev, intr.whisr, 0);
+	intr = sdio_readl(func, MCR_WHISR, 0);
+	trace_dev_irq(dev, intr, 0);
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->phy.state))
 		goto out;
 
-	if (intr.whisr & (WHIER_RX0_DONE_INT_EN | WHIER_RX1_DONE_INT_EN))
+	if (intr & (WHIER_RX0_DONE_INT_EN | WHIER_RX1_DONE_INT_EN |
+		    WHIER_TX_DONE_INT_EN))
 		wake_up_process(sdio->kthread);
 
-	if (intr.whisr & WHIER_TX_DONE_INT_EN) {
-		mt76s_refill_sched_quota(dev, intr.wtqcr);
+	if (intr & WHIER_TX_DONE_INT_EN)
 		tasklet_schedule(&dev->tx_tasklet);
-	}
 out:
 	/* enable interrupt */
 	sdio_writel(func, WHLPCR_INT_EN_SET, MCR_WHLPCR, 0);
