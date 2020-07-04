@@ -754,14 +754,9 @@ static void mt76s_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 	wake_up_process(sdio->kthread);
 }
 
-static void mt76s_refill_sched_quota(struct mt76_dev *dev)
+static void mt76s_refill_sched_quota(struct mt76_dev *dev, u32 *data)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
-	u32 data[8];
-	int i;
-
-	for (i = 0 ; i < ARRAY_SIZE(data); i++)
-		data[i] = sdio_readl(sdio->func, MCR_WTQCR(i), 0);
 
 	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
 		return;
@@ -783,22 +778,23 @@ static void mt76s_sdio_irq(struct sdio_func *func)
 {
 	struct mt76_dev *dev = sdio_get_drvdata(func);
 	struct mt76_sdio *sdio = &dev->sdio;
-	u32 intr;
+	struct mt76s_intr intr;
 
 	/* disable interrupt */
 	sdio_writel(func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, 0);
 
-	intr = sdio_readl(func, MCR_WHISR, 0);
-	trace_dev_irq(dev, intr, 0);
+	sdio_readsb(func, &intr, MCR_WHISR, sizeof(struct mt76s_intr));
+
+	trace_dev_irq(dev, intr.whisr, 0);
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->phy.state))
 		goto out;
 
-	if (intr & (WHIER_RX0_DONE_INT_EN | WHIER_RX1_DONE_INT_EN))
+	if (intr.whisr & (WHIER_RX0_DONE_INT_EN | WHIER_RX1_DONE_INT_EN))
 		wake_up_process(sdio->kthread);
 
-	if (intr & WHIER_TX_DONE_INT_EN) {
-		mt76s_refill_sched_quota(dev);
+	if (intr.whisr & WHIER_TX_DONE_INT_EN) {
+		mt76s_refill_sched_quota(dev, intr.wtqcr);
 		tasklet_schedule(&dev->tx_tasklet);
 	}
 out:
