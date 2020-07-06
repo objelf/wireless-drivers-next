@@ -30,58 +30,62 @@ u32 mt76s_read_pcr(struct mt76_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76s_read_pcr);
 
-static u32 __mt76s_rr_mailbox(struct mt76_dev *dev, u32 offset)
+static u32 mt76s_rr_mailbox(struct mt76_dev *dev, u32 offset)
 {
 	struct sdio_func *func = dev->sdio.func;
-	u32 val, status;
+	u32 val = ~0, status;
 	int err;
 
 	sdio_claim_host(func);
 
 	sdio_writel(func, offset, MCR_H2DSM0R, &err);
-	if (err < 0)
-		goto err;
+	if (err < 0) {
+		dev_err(dev->dev, "failed setting address [err=%d]\n", err);
+		goto out;
+	}
 
 	sdio_writel(func, H2D_SW_INT_READ, MCR_WSICR, &err);
-	if (err < 0)
-		goto err;
+	if (err < 0) {
+		dev_err(dev->dev, "failed setting read mode [err=%d]\n", err);
+		goto out;
+	}
 
 	err = readx_poll_timeout(mt76s_read_whisr, dev, status,
 				 status & H2D_SW_INT_READ, 0, 1000000);
 	if (err < 0) {
-		dev_err(dev->dev, "%s: query whisr timeout\n", __func__);
-		goto err;
+		dev_err(dev->dev, "query whisr timeout\n");
+		goto out;
 	}
 
 	sdio_writel(func, H2D_SW_INT_READ, MCR_WHISR, &err);
-	if (err < 0)
-		goto err;
+	if (err < 0) {
+		dev_err(dev->dev, "failed setting read mode [err=%d]\n", err);
+		goto out;
+	}
 
 	val = sdio_readl(func, MCR_H2DSM0R, &err);
-	if (err < 0)
-		goto err;
+	if (err < 0) {
+		dev_err(dev->dev, "failed reading h2dsm0r [err=%d]\n", err);
+		goto out;
+	}
 
 	if (val != offset) {
 		dev_err(dev->dev, "register mismatch\n");
-		goto err;
+		val = ~0;
+		goto out;
 	}
 
 	val = sdio_readl(func, MCR_D2HRM1R, &err);
 	if (err < 0)
-		goto err;
+		dev_err(dev->dev, "failed reading d2hrm1r [err=%d]\n", err);
 
+out:
 	sdio_release_host(func);
 
 	return val;
-
-err:
-	dev_err(dev->dev, "%s: err = %d\n", __func__, err);
-	sdio_release_host(func);
-
-	return err;
 }
 
-static void __mt76s_wr_mailbox(struct mt76_dev *dev, u32 offset, u32 val)
+static void mt76s_wr_mailbox(struct mt76_dev *dev, u32 offset, u32 val)
 {
 	struct sdio_func *func = dev->sdio.func;
 	u32 status;
@@ -90,42 +94,47 @@ static void __mt76s_wr_mailbox(struct mt76_dev *dev, u32 offset, u32 val)
 	sdio_claim_host(func);
 
 	sdio_writel(func, offset, MCR_H2DSM0R, &err);
-	if (err < 0)
-		goto err;
+	if (err < 0) {
+		dev_err(dev->dev, "failed setting address [err=%d]\n", err);
+		goto out;
+	}
 
 	sdio_writel(func, val, MCR_H2DSM1R, &err);
-	if (err < 0)
-		goto err;
+	if (err < 0) {
+		dev_err(dev->dev,
+			"failed setting write value [err=%d]\n", err);
+		goto out;
+	}
 
 	sdio_writel(func, H2D_SW_INT_WRITE, MCR_WSICR, &err);
-	if (err < 0)
-		goto err;
+	if (err < 0) {
+		dev_err(dev->dev, "failed setting write mode [err=%d]\n", err);
+		goto out;
+	}
 
 	err = readx_poll_timeout(mt76s_read_whisr, dev, status,
 				 status & H2D_SW_INT_WRITE, 0, 1000000);
 	if (err < 0) {
-		dev_err(dev->dev, "%s: query whisr timeout\n", __func__);
-		goto err;
+		dev_err(dev->dev, "query whisr timeout\n");
+		goto out;
 	}
 
 	sdio_writel(func, H2D_SW_INT_WRITE, MCR_WHISR, &err);
-	if (err < 0)
-		goto err;
-
-	val = sdio_readl(func, MCR_H2DSM0R, &err);
-	if (err < 0)
-		goto err;
-
-	if (val != offset) {
-		dev_err(dev->dev, "register is mismatch\n");
-		goto err;
+	if (err < 0) {
+		dev_err(dev->dev, "failed setting write mode [err=%d]\n", err);
+		goto out;
 	}
 
-	sdio_release_host(func);
+	val = sdio_readl(func, MCR_H2DSM0R, &err);
+	if (err < 0) {
+		dev_err(dev->dev, "failed reading h2dsm0r [err=%d]\n", err);
+		goto out;
+	}
 
-	return;
-err:
-	dev_err(dev->dev, "%s: err = %d\n", __func__, err);
+	if (val != offset)
+		dev_err(dev->dev, "register mismatch\n");
+
+out:
 	sdio_release_host(func);
 }
 
@@ -134,7 +143,7 @@ static u32 mt76s_rr(struct mt76_dev *dev, u32 offset)
 	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
 		return dev->mcu_ops->mcu_rr(dev, offset);
 	else
-		return __mt76s_rr_mailbox(dev, offset);
+		return mt76s_rr_mailbox(dev, offset);
 }
 
 static void mt76s_wr(struct mt76_dev *dev, u32 offset, u32 val)
@@ -142,7 +151,7 @@ static void mt76s_wr(struct mt76_dev *dev, u32 offset, u32 val)
 	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
 		dev->mcu_ops->mcu_wr(dev, offset, val);
 	else
-		__mt76s_wr_mailbox(dev, offset, val);
+		mt76s_wr_mailbox(dev, offset, val);
 }
 
 static u32 mt76s_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val)
@@ -156,24 +165,24 @@ static u32 mt76s_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val)
 static void mt76s_write_copy(struct mt76_dev *dev, u32 offset,
 			     const void *data, int len)
 {
-	while (len) {
-		mt76s_wr(dev, offset, *(u32 *)data);
+	const u32 *val = data;
+	int i;
 
+	for (i = 0; i < len / sizeof(u32); i++) {
+		mt76s_wr(dev, offset, val[i]);
 		offset += sizeof(u32);
-		data += sizeof(u32);
-		len -= sizeof(u32);
 	}
 }
 
 static void mt76s_read_copy(struct mt76_dev *dev, u32 offset,
 			    void *data, int len)
 {
-	while (len) {
-		*(u32 *)data = mt76s_rr(dev, offset);
+	u32 *val = data;
+	int i;
 
+	for (i = 0; i < len / sizeof(u32); i++) {
+		val[i] = mt76s_rr(dev, offset);
 		offset += sizeof(u32);
-		data += sizeof(u32);
-		len -= sizeof(u32);
 	}
 }
 
@@ -181,10 +190,11 @@ static int
 mt76s_wr_rp(struct mt76_dev *dev, u32 base,
 	    const struct mt76_reg_pair *data, int len)
 {
-	while (len > 0) {
+	int i;
+
+	for (i = 0; i < len; i++) {
 		mt76s_wr(dev, data->reg, data->value);
 		data++;
-		len--;
 	}
 
 	return 0;
@@ -194,10 +204,11 @@ static int
 mt76s_rd_rp(struct mt76_dev *dev, u32 base,
 	    struct mt76_reg_pair *data, int len)
 {
-	while (len > 0) {
+	int i;
+
+	for (i = 0; i < len; i++) {
 		data->value = mt76s_rr(dev, data->reg);
 		data++;
-		len--;
 	}
 
 	return 0;
