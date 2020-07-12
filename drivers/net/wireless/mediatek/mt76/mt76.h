@@ -464,6 +464,8 @@ struct mt76_sdio {
 		int pse_mcu_quota;
 		int deficit;
 	} sched;
+
+	u8 *abuf;
 };
 
 struct mt76_mmio {
