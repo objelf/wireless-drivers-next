@@ -34,6 +34,7 @@ static void mt7663s_refill_sched_quota(struct mt7615_dev *dev, u32 *data)
 				      FIELD_GET(TXQ_CNT_L, data[4]);  /* VO */
 	sdio->sched.pse_mcu_quota += FIELD_GET(TXQ_CNT_L, data[2]);
 	mutex_unlock(&sdio->sched.lock);
+trace_printk("%d %d %d\n", sdio->sched.pse_data_quota, sdio->sched.ple_data_quota, sdio->sched.pse_mcu_quota);
 }
 
 static struct sk_buff *mt7663s_build_rx_skb(void *data, int data_len,
