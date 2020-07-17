@@ -80,6 +80,7 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 #define RX_DONE_INT		BIT(1)
 #define TX_EMPTY		BIT(2)
 #define TX_FIFO_OVERFLOW	BIT(8)
+#define INT_DEFAULT		(TX_FIFO_OVERFLOW | TX_EMPTY | RX_DONE_INT)
 #define RX_PKT_LEN		GENMASK(31, 16)
 
 #define MTK_REG_CTDR		0x18
@@ -492,25 +493,24 @@ static void btmtksdio_irq_work(struct work_struct *work)
 	/* Disable interrupt */
 	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
 
-	int_status = sdio_readl(bdev->func, MTK_REG_CHISR, NULL);
+	do {
+		int_status = sdio_readl(bdev->func, MTK_REG_CHISR, NULL);
 
-	if (unlikely(!int_status))
-		bt_dev_err(bdev->hdev, "CHISR is 0");
+		if (int_status & FW_OWN_BACK_INT)
+			bt_dev_dbg(bdev->hdev, "Get fw own back");
 
-	if (int_status & FW_OWN_BACK_INT)
-		bt_dev_dbg(bdev->hdev, "Get fw own back");
+		if (int_status & TX_EMPTY)
+			schedule_work(&bdev->tx_work);
+		else if (unlikely(int_status & TX_FIFO_OVERFLOW))
+			bt_dev_warn(bdev->hdev, "Tx fifo overflow");
 
-	if (int_status & TX_EMPTY)
-		schedule_work(&bdev->tx_work);
-	else if (unlikely(int_status & TX_FIFO_OVERFLOW))
-		bt_dev_warn(bdev->hdev, "Tx fifo overflow");
+		if (int_status & RX_DONE_INT) {
+			rx_size = (int_status & RX_PKT_LEN) >> 16;
 
-	if (int_status & RX_DONE_INT) {
-		rx_size = (int_status & RX_PKT_LEN) >> 16;
-
-		if (btmtksdio_rx_packet(bdev, rx_size) < 0)
-			bdev->hdev->stat.err_rx++;
-	}
+			if (btmtksdio_rx_packet(bdev, rx_size) < 0)
+				bdev->hdev->stat.err_rx++;
+		}
+	} while (int_status & INT_DEFAULT);
 
 	/* Enable interrupt */
 	sdio_writel(bdev->func, C_INT_EN_SET, MTK_REG_CHLPCR, 0);
