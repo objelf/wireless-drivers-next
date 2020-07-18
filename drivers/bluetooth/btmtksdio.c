@@ -34,9 +34,9 @@
 #define FIRMWARE_MT7663		"mediatek/mt7663pr2h.bin"
 #define FIRMWARE_MT7668		"mediatek/mt7668pr2h.bin"
 
-#define MTKBTSDIO_AUTOSUSPEND_DELAY	8000
+#define MTKBTSDIO_AUTOSUSPEND_DELAY	1
 
-static bool enable_autosuspend;
+static bool enable_autosuspend = true;
 
 struct btmtksdio_data {
 	const char *fwname;
