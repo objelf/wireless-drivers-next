@@ -218,6 +218,7 @@ int mt7663s_kthread_run(void *data)
 {
 	struct mt7615_dev *dev = data;
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
+	int count;
 
 	while (!kthread_should_stop()) {
 		struct mt76s_intr intr;
@@ -230,6 +231,8 @@ int mt7663s_kthread_run(void *data)
 
 		mt7663s_tx_run_queues(dev);
 
+		count = 0;
+
 		do {
 			sdio_claim_host(sdio->func);
 			sdio_readsb(sdio->func, &intr, MCR_WHISR,
@@ -237,6 +240,14 @@ int mt7663s_kthread_run(void *data)
 			sdio_release_host(sdio->func);
 
 			trace_dev_irq(&dev->mt76, intr.isr, 0);
+
+			if (!intr.isr && count < 16) {
+				count++;
+				continue;
+			}
+
+			if (intr.isr)
+				count = 0;
 
 			if (intr.isr & WHIER_RX0_DONE_INT_EN)
 				mt7663s_rx_run_queue(dev, 0, &intr);
