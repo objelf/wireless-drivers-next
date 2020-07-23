@@ -255,7 +255,6 @@ mt76s_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 	q->entry[q->tail].skb = skb;
 	q->tail = (q->tail + 1) % q->ndesc;
 
-	q->queued++;
 out:
 	spin_unlock_bh(&q->lock);
 
