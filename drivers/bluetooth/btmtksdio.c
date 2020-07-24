@@ -448,17 +448,6 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 
 	int_status = sdio_readl(func, MTK_REG_CHISR, NULL);
 
-	/* Ack an interrupt as soon as possible before any operation on
-	 * hardware.
-	 *
-	 * Note that we don't ack any status during operations to avoid race
-	 * condition between the host and the device such as it's possible to
-	 * mistakenly ack RX_DONE for the next packet and then cause interrupts
-	 * not be raised again but there is still pending data in the hardware
-	 * FIFO.
-	 */
-	sdio_writel(func, int_status, MTK_REG_CHISR, NULL);
-
 	if (unlikely(!int_status))
 		bt_dev_err(bdev->hdev, "CHISR is 0");
 
@@ -487,8 +476,8 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 static int btmtksdio_open(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+	u32 status, val;
 	int err;
-	u32 status;
 
 	sdio_claim_host(bdev->func);
 
@@ -533,8 +522,13 @@ static int btmtksdio_open(struct hci_dev *hdev)
 	if (err < 0)
 		goto err_release_irq;
 
-	/* Setup write-1-clear for CHISR register */
-	sdio_writel(bdev->func, C_INT_CLR_CTRL, MTK_REG_CHCR, &err);
+	/* Write clear method */
+	val = sdio_readl(bdev->func, MTK_REG_CHCR, &err);
+	if (err < 0)
+		goto err_release_irq;
+
+	val &= ~C_INT_CLR_CTRL;
+	sdio_writel(bdev->func, val, MTK_REG_CHCR, &err);
 	if (err < 0)
 		goto err_release_irq;
 
