@@ -176,10 +176,7 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 	if (wake)
 		ieee80211_wake_queue(dev->hw, qid);
 
-	if (n_dequeued) {
-		set_bit(MT76S_STATE_TXRX_PENDING, &dev->sdio.state);
-		wake_up(&dev->sdio.txrx_wait);
-	}
+	wake_up_process(dev->sdio.tx_kthread);
 out:
 	return n_dequeued;
 }
@@ -255,7 +252,6 @@ mt76s_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 	q->entry[q->tail].skb = skb;
 	q->tail = (q->tail + 1) % q->ndesc;
 
-	q->queued++;
 out:
 	spin_unlock_bh(&q->lock);
 
@@ -266,8 +262,7 @@ static void mt76s_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 
-	set_bit(MT76S_STATE_TXRX_PENDING, &sdio->state);
-	wake_up(&sdio->txrx_wait);
+	wake_up_process(sdio->tx_kthread);
 }
 
 static const struct mt76_queue_ops sdio_queue_ops = {
@@ -279,7 +274,6 @@ static const struct mt76_queue_ops sdio_queue_ops = {
 static int mt76s_kthread_run(void *data)
 {
 	struct mt76_dev *dev = data;
-	struct mt76_sdio *sdio = &dev->sdio;
 	struct mt76_phy *mphy = &dev->phy;
 
 	while (!kthread_should_stop()) {
@@ -303,15 +297,12 @@ static int mt76s_kthread_run(void *data)
 
 		if (dev->drv->tx_status_data &&
 		    !test_and_set_bit(MT76_READING_STATS, &mphy->state))
-			queue_work(dev->wq, &sdio->stat_work);
+			queue_work(dev->wq, &dev->sdio.stat_work);
 
-		if (nframes)
-			continue;
-
-		wait_event_timeout(sdio->status_wait,
-				   test_bit(MT76S_STATE_STATUS_PENDING,
-					    &sdio->state), HZ / 4);
-		clear_bit(MT76S_STATE_STATUS_PENDING, &sdio->state);
+		if (!nframes || !test_bit(MT76_STATE_RUNNING, &mphy->state)) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule();
+		}
 	}
 
 	return 0;
@@ -322,8 +313,8 @@ void mt76s_deinit(struct mt76_dev *dev)
 	struct mt76_sdio *sdio = &dev->sdio;
 	int i;
 
-	kthread_stop(sdio->txrx_kthread);
 	kthread_stop(sdio->kthread);
+	kthread_stop(sdio->tx_kthread);
 	mt76s_stop_txrx(dev);
 
 	sdio_claim_host(sdio->func);
@@ -357,8 +348,6 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 		return PTR_ERR(sdio->kthread);
 
 	INIT_WORK(&sdio->stat_work, mt76s_tx_status_data);
-	init_waitqueue_head(&sdio->status_wait);
-	init_waitqueue_head(&sdio->txrx_wait);
 
 	mutex_init(&sdio->sched.lock);
 	dev->queue_ops = &sdio_queue_ops;
