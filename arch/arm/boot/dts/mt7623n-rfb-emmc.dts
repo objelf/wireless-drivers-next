@@ -22,6 +22,7 @@
 
 	chosen {
 		stdout-path = "serial2:115200n8";
+		bootargs = "earlycon=uart8250,mmio32,0x11004000 console=ttyS2,115200n1 root=/dev/mmcblk1p1 rw rootwait swiotlb=512";
 	};
 
 	cpus {
