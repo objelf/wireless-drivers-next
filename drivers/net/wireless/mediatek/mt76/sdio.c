@@ -231,10 +231,6 @@ mt76s_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 	if (q->queued == q->ndesc)
 		goto error;
 
-	ret = mt76_skb_adjust_pad(skb);
-	if (ret)
-		goto error;
-
 	spin_lock_bh(&q->lock);
 
 	q->entry[q->head].buf_sz = len;

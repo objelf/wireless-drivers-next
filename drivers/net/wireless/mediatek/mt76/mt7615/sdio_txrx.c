@@ -34,6 +34,8 @@ static void mt7663s_refill_sched_quota(struct mt76_dev *dev, u32 *data)
 				      FIELD_GET(TXQ_CNT_L, data[4]);  /* VO */
 	sdio->sched.pse_mcu_quota += FIELD_GET(TXQ_CNT_L, data[2]);
 	mutex_unlock(&sdio->sched.lock);
+
+	trace_printk("%d %d %d\n", sdio->sched.pse_data_quota, sdio->sched.ple_data_quota, sdio->sched.pse_mcu_quota);
 }
 
 static struct sk_buff *mt7663s_build_rx_skb(void *data, int data_len,
@@ -160,11 +162,72 @@ static int mt7663s_tx_update_sched(struct mt76_dev *dev,
 	return ret;
 }
 
+static void mt7663s_tx_aggr_kick(struct mt76_dev *dev)
+{
+	struct mt76_sdio *sdio = &dev->sdio;
+	int err, len;
+
+	if (sdio->tx_cur != sdio->tx_data) {
+		memset(sdio->tx_cur, 0, 4);
+		sdio->tx_cur += 4;
+
+		len = sdio->tx_cur - sdio->tx_data;
+		if (len > sdio->func->cur_blksize)
+			len = roundup(len, sdio->func->cur_blksize);
+
+		sdio_claim_host(sdio->func);
+		err = sdio_writesb(sdio->func, MCR_WTDR1, sdio->tx_data, len);
+		sdio_release_host(sdio->func);
+
+		trace_printk("agg writesb=%d sdio->tx_aggc_cur = %d sdio->tx_aggc_max = %d\n",
+			     len, sdio->tx_aggc_cur, sdio->tx_aggc_max);
+		if (err)
+			dev_err(dev->dev, "sdio write data failed: %d\n", err);
+	}
+}
+
+static void mt7663s_tx_aggr_reset(struct mt76_dev *dev)
+{
+	struct mt76_sdio *sdio = &dev->sdio;
+
+	sdio->tx_aggc_cur = 0;
+	sdio->tx_cur = sdio->tx_data;	
+}
+
+static void mt7663s_tx_aggr_put(struct mt76_dev *dev, struct mt76_queue_entry *e)
+{
+	struct mt76_sdio *sdio = &dev->sdio;
+	int len = e->skb->len, pad;
+
+	pad = round_up(len, 4) - len;
+
+	if (sdio->tx_cur - sdio->tx_data + len +
+	    pad >= sdio->tx_sz) {
+		mt7663s_tx_aggr_kick(dev);
+		mt7663s_tx_aggr_reset(dev);
+	}
+
+	memcpy(sdio->tx_cur, e->skb->data, len);
+	sdio->tx_cur += len;
+	memset(sdio->tx_cur, 0, pad);
+	sdio->tx_cur += pad;
+
+	sdio->tx_aggc_cur++;
+
+	if (sdio->tx_aggc_cur >= sdio->tx_aggc_max) {
+		mt7663s_tx_aggr_kick(dev);
+		mt7663s_tx_aggr_reset(dev);
+	}
+}
+
 static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
 	bool mcu = q == dev->q_tx[MT_TXQ_MCU];
 	struct mt76_sdio *sdio = &dev->sdio;
-	int nframes = 0;
+	struct mt76_phy *mphy = &dev->phy;
+	int nframes = 0, pad;
+
+	mt7663s_tx_aggr_reset(dev);
 
 	while (q->first != q->head) {
 		struct mt76_queue_entry *e = &q->entry[q->first];
@@ -173,23 +236,41 @@ static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 		if (mt7663s_tx_update_sched(dev, e, mcu))
 			break;
 
-		if (len > sdio->func->cur_blksize)
-			len = roundup(len, sdio->func->cur_blksize);
-
 		/* TODO: skb_walk_frags and then write to SDIO port */
-		sdio_claim_host(sdio->func);
-		err = sdio_writesb(sdio->func, MCR_WTDR1, e->skb->data, len);
-		sdio_release_host(sdio->func);
 
-		if (err) {
-			dev_err(dev->dev, "sdio write failed: %d\n", err);
-			return -EIO;
+		if (test_bit(MT76_STATE_MCU_RUNNING, &mphy->state)) {
+			mt7663s_tx_aggr_put(dev, e);
+		} else {
+			pad = round_up(len, 4) + 4 - len;
+
+			err = skb_pad(e->skb, pad);
+			if (err) {
+				dev_err(dev->dev, "skb pad failed: %d\n", err);
+				return -EIO;
+			}
+
+			__skb_put(e->skb, pad);
+
+			len = e->skb->len;
+			if (e->skb->len > sdio->func->cur_blksize)
+				len = roundup(e->skb->len, sdio->func->cur_blksize);
+
+		       sdio_claim_host(sdio->func);
+		       err = sdio_writesb(sdio->func, MCR_WTDR1, e->skb->data, len);
+		       sdio_release_host(sdio->func);
+
+			if (err) {
+				dev_err(dev->dev, "sdio write failed: %d\n", err);
+				return -EIO;
+			}
 		}
 
 		e->done = true;
 		q->first = (q->first + 1) % q->ndesc;
 		nframes++;
 	}
+
+	mt7663s_tx_aggr_kick(dev);
 
 	return nframes;
 }
@@ -210,6 +291,7 @@ void mt7663s_tx_work(struct work_struct *work)
 
 		nframes += ret;
 	}
+
 	if (nframes)
 		queue_work(sdio->txrx_wq, &sdio->tx.xmit_work);
 

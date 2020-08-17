@@ -461,6 +461,11 @@ struct mt76_sdio {
 
 	struct sdio_func *func;
 	void *intr_data;
+	u8 *tx_data;
+	u8 *tx_cur;
+	int tx_sz;
+	int tx_aggc_max;
+	int tx_aggc_cur;
 
 	struct {
 		struct mutex lock;
