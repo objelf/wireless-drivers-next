@@ -262,7 +262,10 @@ int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (mt76_is_usb(mdev))
 		put_unaligned_le32(skb->len, skb_push(skb, sizeof(skb->len)));
 
-	return mt76_skb_adjust_pad(skb);
+	if (mt76_is_usb(mdev))
+		return mt76_skb_adjust_pad(skb);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_prepare_skb);
 

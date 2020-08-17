@@ -310,7 +310,7 @@ mt76_phy_init(struct mt76_dev *dev, struct ieee80211_hw *hw)
 
 		/* TODO: avoid linearization for SDIO */
 		if (!mt76_is_sdio(dev))
-			ieee80211_hw_set(hw, TX_FRAG_LIST);
+		       ieee80211_hw_set(hw, TX_FRAG_LIST);
 	}
 
 	ieee80211_hw_set(hw, MFP_CAPABLE);
