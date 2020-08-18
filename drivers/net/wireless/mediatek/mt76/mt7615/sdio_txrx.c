@@ -309,6 +309,10 @@ void mt7663s_rx_work(struct work_struct *work)
 	/* disable interrupt */
 	sdio_claim_host(sdio->func);
 	sdio_writel(sdio->func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, 0);
+	sdio_release_host(sdio->func);
+
+rx_again:
+	sdio_claim_host(sdio->func);
 	sdio_readsb(sdio->func, intr, MCR_WHISR, sizeof(struct mt76s_intr));
 	sdio_release_host(sdio->func);
 
@@ -335,10 +339,8 @@ void mt7663s_rx_work(struct work_struct *work)
 		queue_work(sdio->txrx_wq, &sdio->tx.xmit_work);
 	}
 
-	if (nframes) {
-		queue_work(sdio->txrx_wq, &sdio->rx.recv_work);
-		return;
-	}
+	if  (intr->isr)
+		goto rx_again;
 
 	/* enable interrupt */
 	sdio_claim_host(sdio->func);
