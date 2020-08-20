@@ -306,8 +306,7 @@ mt76_phy_init(struct mt76_dev *dev, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
 
 	if (!(dev->drv->drv_flags & MT_DRV_AMSDU_OFFLOAD)) {
-		if (!mt76_is_sdio(dev))
-			ieee80211_hw_set(hw, TX_AMSDU);
+		ieee80211_hw_set(hw, TX_AMSDU);
 
 		/* TODO: avoid linearization for SDIO */
 		if (!mt76_is_sdio(dev))
