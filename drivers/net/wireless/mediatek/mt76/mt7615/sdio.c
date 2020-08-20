@@ -311,8 +311,8 @@ static int mt7663s_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	ple = mt76_get_field(dev, MT_PLE_PG_HIF0_GROUP, MT_HIF0_MIN_QUOTA);
 
 	mutex_lock(&sdio->sched.lock);
-	sdio->sched.pse_data_quota = pse / 2;
-	sdio->sched.ple_data_quota = ple / 2;
+	sdio->sched.pse_data_quota = (pse * 3) / 4;
+	sdio->sched.ple_data_quota = (ple * 3) / 4;
 	mutex_unlock(&sdio->sched.lock);
 
 	return 0;
@@ -387,7 +387,7 @@ static int mt7663s_probe(struct sdio_func *func,
 		goto err_deinit;
 	}
 
-	mdev->sdio.tx_aggc_max = 40;
+	mdev->sdio.tx_aggc_max = 80;
 	mdev->sdio.tx_sz = min_t(int, 1024 * 128,
 				 func->cur_blksize * func->card->host->max_blk_count);
 	mdev->sdio.tx_data = devm_kmalloc(mdev->dev, mdev->sdio.tx_sz, GFP_KERNEL);
