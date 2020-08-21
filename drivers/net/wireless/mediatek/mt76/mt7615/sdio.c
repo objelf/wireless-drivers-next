@@ -387,7 +387,7 @@ static int mt7663s_probe(struct sdio_func *func,
 		goto err_deinit;
 	}
 
-	mdev->sdio.tx_aggc_max = 16;
+	mdev->sdio.tx_aggc_max = 80;
 	mdev->sdio.tx_sz = min_t(int, 1024 * 128,
 				 func->cur_blksize * func->card->host->max_blk_count);
 	mdev->sdio.tx_data = devm_kmalloc(mdev->dev, mdev->sdio.tx_sz, GFP_KERNEL);
