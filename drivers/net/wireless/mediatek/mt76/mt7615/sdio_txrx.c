@@ -293,9 +293,9 @@ void mt7663s_tx_work(struct work_struct *work)
 	}
 
 	if (nframes)
-		queue_work(sdio->tx_wq, &sdio->tx.xmit_work);
+		queue_work(sdio->txrx_wq, &sdio->tx.xmit_work);
 
-	queue_work(sdio->tx_done_wq, &sdio->tx.status_work);
+	queue_work(sdio->txrx_wq, &sdio->tx.status_work);
 }
 
 void mt7663s_rx_work(struct work_struct *work)
@@ -321,7 +321,7 @@ rx_again:
 	if (intr->isr & WHIER_RX0_DONE_INT_EN) {
 		ret = mt7663s_rx_run_queue(dev, 0, intr);
 		if (ret > 0) {
-			queue_work(sdio->rx_wq, &sdio->rx.net_work);
+			queue_work(sdio->txrx_wq, &sdio->rx.net_work);
 			nframes += ret;
 		}
 	}
@@ -329,14 +329,14 @@ rx_again:
 	if (intr->isr & WHIER_RX1_DONE_INT_EN) {
 		ret = mt7663s_rx_run_queue(dev, 1, intr);
 		if (ret > 0) {
-			queue_work(sdio->rx_wq, &sdio->rx.net_work);
+			queue_work(sdio->txrx_wq, &sdio->rx.net_work);
 			nframes += ret;
 		}
 	}
 
 	if (intr->isr & WHIER_TX_DONE_INT_EN) {
 		mt7663s_refill_sched_quota(dev, intr->tx.wtqcr);
-		queue_work(sdio->tx_wq, &sdio->tx.xmit_work);
+		queue_work(sdio->txrx_wq, &sdio->tx.xmit_work);
 	}
 
 	if  (intr->isr)
@@ -356,5 +356,5 @@ void mt7663s_sdio_irq(struct sdio_func *func)
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.phy.state))
 		return;
 
-	queue_work(sdio->rx_wq, &sdio->rx.recv_work);
+	queue_work(sdio->txrx_wq, &sdio->rx.recv_work);
 }

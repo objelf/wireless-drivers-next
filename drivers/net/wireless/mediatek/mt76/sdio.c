@@ -271,7 +271,7 @@ static void mt76s_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 
-	queue_work(sdio->tx_wq, &sdio->tx.xmit_work);
+	queue_work(sdio->txrx_wq, &sdio->tx.xmit_work);
 }
 
 static const struct mt76_queue_ops sdio_queue_ops = {
@@ -319,19 +319,9 @@ void mt76s_deinit(struct mt76_dev *dev)
 	int i;
 
 	mt76s_stop_txrx(dev);
-	if (sdio->tx_wq) {
-		destroy_workqueue(sdio->tx_wq);
-		sdio->tx_wq = NULL;
-	}
-
-	if (sdio->rx_wq) {
-		destroy_workqueue(sdio->rx_wq);
-		sdio->rx_wq = NULL;
-	}
-
-	if (sdio->tx_done_wq) {
-		destroy_workqueue(sdio->tx_done_wq);
-		sdio->tx_done_wq = NULL;
+	if (sdio->txrx_wq) {
+		destroy_workqueue(sdio->txrx_wq);
+		sdio->txrx_wq = NULL;
 	}
 
 	sdio_claim_host(sdio->func);
@@ -360,22 +350,10 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 
-	sdio->tx_wq = alloc_workqueue("mt76s_tx_wq",
+	sdio->txrx_wq = alloc_workqueue("mt76s_txrx_wq",
 					WQ_UNBOUND | WQ_HIGHPRI,
 					WQ_UNBOUND_MAX_ACTIVE);
-	if (!sdio->tx_wq)
-		return -ENOMEM;
-
-	sdio->rx_wq = alloc_workqueue("mt76s_rx_wq",
-					WQ_UNBOUND | WQ_HIGHPRI,
-					WQ_UNBOUND_MAX_ACTIVE);
-	if (!sdio->rx_wq)
-		return -ENOMEM;
-
-	sdio->tx_done_wq = alloc_workqueue("mt76s_tx_done_wq",
-					WQ_UNBOUND | WQ_HIGHPRI,
-					WQ_UNBOUND_MAX_ACTIVE);
-	if (!sdio->tx_done_wq)
+	if (!sdio->txrx_wq)
 		return -ENOMEM;
 
 	INIT_WORK(&sdio->stat_work, mt76s_tx_status_data);
