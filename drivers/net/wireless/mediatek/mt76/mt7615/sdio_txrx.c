@@ -99,7 +99,7 @@ static int mt7663s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 	}
 
 	for (i = 0; i < intr->rx.num[qid]; i++) {
-		int index = (q->tail + i) % q->ndesc;
+		int index = (q->head + i) % q->ndesc;
 		struct mt76_queue_entry *e = &q->entry[index];
 
 		len = intr->rx.len[qid][i];
@@ -114,7 +114,7 @@ static int mt7663s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 	__free_pages(page, order);
 
 	spin_lock_bh(&q->lock);
-	q->tail = (q->tail + i) % q->ndesc;
+	q->head = (q->head + i) % q->ndesc;
 	q->queued += i;
 	spin_unlock_bh(&q->lock);
 
@@ -229,7 +229,7 @@ static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 
 	mt7663s_tx_aggr_reset(dev);
 
-	while (q->first != q->tail) {
+	while (q->first != q->head) {
 		struct mt76_queue_entry *e = &q->entry[q->first];
 		int err, len = e->skb->len;
 
