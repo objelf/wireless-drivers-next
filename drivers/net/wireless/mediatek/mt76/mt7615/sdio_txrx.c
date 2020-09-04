@@ -76,6 +76,7 @@ static void mt7663s_refill_sched_quota(struct mt76_dev *dev, u32 *data)
 		sdio->sched.ple_data_quota += ple_data_quota[i];
 	}
 	mutex_unlock(&sdio->sched.lock);
+trace_printk("%d %d %d\n", sdio->sched.pse_data_quota, sdio->sched.ple_data_quota, sdio->sched.pse_mcu_quota);
 }
 
 static struct sk_buff *mt7663s_build_rx_skb(void *data, int data_len,
