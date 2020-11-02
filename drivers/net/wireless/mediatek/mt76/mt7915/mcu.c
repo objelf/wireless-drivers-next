@@ -2914,7 +2914,6 @@ u32 mt7615_mcu_reg_rr(struct mt76_dev *dev, u32 offset)
 static int mt7915_load_firmware(struct mt7915_dev *dev)
 {
 	int ret;
-	u32 val, reg = mt7915_reg_map_l1(dev, MT_TOP_MISC);
 
 	ret = mt76_get_field(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY);
 	if (ret) {
@@ -2983,7 +2982,7 @@ int mt7915_mcu_init(struct mt7915_dev *dev)
 		.mcu_send_msg = mt7915_mcu_msg_send,
 		.mcu_restart = mt7915_mcu_restart,
 	};
-	int ret, i;
+	int ret;
 
 	dev->mt76.mcu_ops = &mt7915_mcu_ops,
 

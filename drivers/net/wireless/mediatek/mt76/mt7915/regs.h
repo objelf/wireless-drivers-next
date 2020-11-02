@@ -405,7 +405,7 @@
 #define MT_WF_PHY_RX_CTRL1(_phy)	MT_WF_PHY(0x2004 + ((_phy) << 16))
 #define MT_WF_PHY_RX_CTRL1_STSCNT_EN	GENMASK(11, 9)
 
-#define MT_DMA_SHDL(ofs)		(0x7c026000 + (ofs))
+#define MT_DMA_SHDL(ofs)		(0xd6000 + (ofs))
 #define MT_DMASHDL_SW_CONTROL		MT_DMA_SHDL(0x004)
 #define MT_DMASHDL_DMASHDL_BYPASS	BIT(28)
 #define MT_DMASHDL_OPTIONAL		MT_DMA_SHDL(0x008)
