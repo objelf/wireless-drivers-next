@@ -228,6 +228,7 @@ static int mt7921_dmashdl_disabled(struct mt7915_dev *dev)
 	return 0;
 }
 
+#if 0
 static int mt7921_dmashdl_init(struct mt7915_dev *dev)
 {
 	int i;
@@ -256,6 +257,7 @@ static int mt7921_dmashdl_init(struct mt7915_dev *dev)
 
 	return 0;
 }
+#endif
 
 int mt7915_dma_init(struct mt7915_dev *dev)
 {
