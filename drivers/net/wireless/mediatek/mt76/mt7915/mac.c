@@ -674,7 +674,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	}
 	txwi[2] = cpu_to_le32(val);
 
-	if (!ieee80211_is_data(fc) || multicast) {
+	if (!ieee80211_is_data(fc) || multicast || 1) {
 		u16 rate;
 
 		/* hardware won't add HTC for mgmt/ctrl frame */
