@@ -129,7 +129,6 @@ struct mt7915_phy {
 	s16 coverage_class;
 	u8 slottime;
 
-	u8 rdd_state;
 	int dfs_state;
 
 	__le32 rx_ampdu_ts;
@@ -218,22 +217,6 @@ enum {
 	MT_RX_SEL1,
 };
 
-enum mt7915_rdd_cmd {
-	RDD_STOP,
-	RDD_START,
-	RDD_DET_MODE,
-	RDD_RADAR_EMULATE,
-	RDD_START_TXQ = 20,
-	RDD_CAC_START = 50,
-	RDD_CAC_END,
-	RDD_NORMAL_START,
-	RDD_DISABLE_DFS_CAL,
-	RDD_PULSE_DBG,
-	RDD_READ_PULSE,
-	RDD_RESUME_BF,
-	RDD_IRQ_OFF,
-};
-
 enum {
 	RATE_CTRL_RU_INFO,
 	RATE_CTRL_FIXED_RATE_INFO,
@@ -282,7 +265,6 @@ u32 mt7915_reg_map(struct mt7915_dev *dev, u32 addr);
 int mt7915_register_device(struct mt7915_dev *dev);
 void mt7915_unregister_device(struct mt7915_dev *dev);
 int mt7915_register_ext_phy(struct mt7915_dev *dev);
-void mt7915_unregister_ext_phy(struct mt7915_dev *dev);
 int mt7915_eeprom_init(struct mt7915_dev *dev);
 u32 mt7915_eeprom_read(struct mt7915_dev *dev, u32 offset);
 int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
@@ -310,39 +292,17 @@ int mt7915_mcu_add_rx_ba(struct mt7915_dev *dev,
 int mt7915_mcu_add_key(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		       struct mt7915_sta *msta, struct ieee80211_key_conf *key,
 		       enum set_key_cmd cmd);
-int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			  int enable);
-int mt7915_mcu_add_obss_spr(struct mt7915_dev *dev, struct ieee80211_vif *vif,
-                            bool enable);
-int mt7915_mcu_add_rate_ctrl(struct mt7915_dev *dev, struct ieee80211_vif *vif,
-			     struct ieee80211_sta *sta);
-int mt7915_mcu_add_smps(struct mt7915_dev *dev, struct ieee80211_vif *vif,
-			struct ieee80211_sta *sta);
 int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd);
 int mt7915_mcu_set_tx(struct mt7915_dev *dev, struct ieee80211_vif *vif);
-int mt7915_mcu_set_fixed_rate(struct mt7915_dev *dev,
-			      struct ieee80211_sta *sta, u32 rate);
 int mt7915_mcu_set_eeprom(struct mt7915_dev *dev);
 int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset);
 int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
 		       bool hdr_trans);
 int mt7915_mcu_set_scs(struct mt7915_dev *dev, u8 band, bool enable);
-int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band);
 int mt7915_mcu_set_rts_thresh(struct mt7915_phy *phy, u32 val);
-int mt7915_mcu_set_pm(struct mt7915_dev *dev, int band, int enter);
 int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable);
 int mt7915_mcu_set_sku(struct mt7915_phy *phy);
-int mt7915_mcu_set_txbf_type(struct mt7915_dev *dev);
-int mt7915_mcu_set_txbf_sounding(struct mt7915_dev *dev);
-int mt7915_mcu_set_fcc5_lpn(struct mt7915_dev *dev, int val);
-int mt7915_mcu_set_pulse_th(struct mt7915_dev *dev,
-			    const struct mt7915_dfs_pulse *pulse);
-int mt7915_mcu_set_radar_th(struct mt7915_dev *dev, int index,
-			    const struct mt7915_dfs_pattern *pattern);
 int mt7915_mcu_get_rate_info(struct mt7915_dev *dev, u32 cmd, u16 wlan_idx);
-int mt7915_mcu_get_temperature(struct mt7915_dev *dev, int index);
-int mt7915_mcu_rdd_cmd(struct mt7915_dev *dev, enum mt7915_rdd_cmd cmd,
-		       u8 index, u8 rx_sel, u8 val);
 int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 ctrl);
 int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
 void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
@@ -464,10 +424,7 @@ void mt7915_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
 void mt7915_stats_work(struct work_struct *work);
 void mt7915_txp_skb_unmap(struct mt76_dev *dev,
 			  struct mt76_txwi_cache *txwi);
-int mt76_dfs_start_rdd(struct mt7915_dev *dev, bool force);
-int mt7915_dfs_init_radar_detector(struct mt7915_phy *phy);
 void mt7915_set_stream_he_caps(struct mt7915_phy *phy);
-void mt7915_set_stream_vht_txbf_caps(struct mt7915_phy *phy);
 void mt7915_update_channel(struct mt76_dev *mdev);
 int mt7915_init_debugfs(struct mt7915_dev *dev);
 #ifdef CONFIG_MAC80211_DEBUGFS
