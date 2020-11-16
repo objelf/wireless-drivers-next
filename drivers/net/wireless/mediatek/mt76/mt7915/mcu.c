@@ -2553,11 +2553,9 @@ mt7615_mcu_add_sta_cmd(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 {
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 	struct wtbl_req_hdr *wtbl_hdr;
-	struct sta_rec_state *state;
 	struct mt7915_sta *msta;
 	struct tlv *sta_wtbl;
 	struct sk_buff *skb;
-	struct tlv *tlv;
 	int ret;
 
 	msta = sta ? (struct mt7915_sta *)sta->drv_priv : &mvif->sta;
@@ -2580,10 +2578,6 @@ mt7615_mcu_add_sta_cmd(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		if (sta)
 			mt7915_mcu_wtbl_ht_tlv(skb, sta, sta_wtbl, wtbl_hdr);
 	}
-
-	tlv = mt7915_mcu_add_tlv(skb, STA_REC_STATE, sizeof(*state));
-	state = (struct sta_rec_state *)tlv;
-	state->state = enable == true ? 2 : 0;
 
 	ret = __mt76_mcu_skb_send_msg(&dev->mt76, skb, cmd, true);
 

@@ -874,15 +874,6 @@ struct sta_rec_ba {
 	__le16 winsize;
 } __packed;
 
-struct sta_rec_state {
-	__le16 tag;
-	__le16 len;
-	u8 state;
-	__le32 flags;
-	u8 vht; /* [0:1]: channel width, [4:6]: Rx Nss, [7]: Rx Nss type */
-	__le16 rsv;
-} __packed;
-
 struct sta_rec_amsdu {
 	__le16 tag;
 	__le16 len;
@@ -1050,7 +1041,7 @@ enum {
 	STA_REC_BF,
 	STA_REC_AMSDU,
 	STA_REC_BA,
-	STA_REC_STATE,
+	STA_REC_RED,		/* not used */
 	STA_REC_TX_PROC,	/* for hdr trans and CSO in CR4 */
 	STA_REC_HT,
 	STA_REC_VHT,
@@ -1117,7 +1108,6 @@ enum {
 					 sizeof(struct sta_rec_ht) +	\
 					 sizeof(struct sta_rec_he) +	\
 					 sizeof(struct sta_rec_ba) +	\
-					 sizeof(struct sta_rec_state) +	\
 					 sizeof(struct sta_rec_vht) +	\
 					 sizeof(struct sta_rec_uapsd) + \
 					 sizeof(struct sta_rec_amsdu) +	\
