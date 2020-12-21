@@ -2878,3 +2878,41 @@ int mt7921_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 				     true);
 }
 #endif /* CONFIG_PM */
+
+int mt7921_mcu_lp_drv_pmctrl(struct mt7921_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < MT7921_DRV_OWN_RETRY_COUNT; i++) {
+		mt76_wr(dev, MT_CONN_ON_LPCTL, PCIE_LPCR_HOST_CLR_OWN);
+		if (mt76_poll_msec(dev, MT_CONN_ON_LPCTL,
+				   PCIE_LPCR_HOST_OWN_SYNC, 0, 50))
+			break;
+	}
+
+	if (i == MT7921_DRV_OWN_RETRY_COUNT) {
+		dev_err(dev->mt76.dev, "driver own failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int mt7921_mcu_fw_pmctrl(struct mt7921_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < MT7921_DRV_OWN_RETRY_COUNT; i++) {
+		mt76_wr(dev, MT_CONN_ON_LPCTL, PCIE_LPCR_HOST_SET_OWN);
+		if (mt76_poll_msec(dev, MT_CONN_ON_LPCTL,
+				   PCIE_LPCR_HOST_OWN_SYNC, 4, 50))
+			break;
+	}
+
+	if (i == MT7921_DRV_OWN_RETRY_COUNT) {
+		dev_err(dev->mt76.dev, "firmware own failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}

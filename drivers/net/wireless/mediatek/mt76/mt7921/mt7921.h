@@ -27,6 +27,8 @@
 #define MT7921_RX_RING_SIZE		1536
 #define MT7921_RX_MCU_RING_SIZE		512
 
+#define MT7921_DRV_OWN_RETRY_COUNT	10
+
 #define MT7921_FIRMWARE_WM		"mediatek/WIFI_RAM_CODE_MT7961_1.bin"
 #define MT7921_ROM_PATCH		"mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin"
 
@@ -370,4 +372,6 @@ int mt7921_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 int mt7921_mcu_update_arp_filter(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info);
+int mt7921_mcu_lp_drv_pmctrl(struct mt7921_dev *dev);
+int mt7921_mcu_fw_pmctrl(struct mt7921_dev *dev);
 #endif
