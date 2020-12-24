@@ -1774,7 +1774,7 @@ int mt7921_mcu_init(struct mt7921_dev *dev)
 
 	dev->mt76.mcu_ops = &mt7921_mcu_ops;
 
-	ret = mt7921_driver_own(dev);
+	ret = mt7921_mcu_lp_drv_pmctrl(dev);
 	if (ret)
 		return ret;
 
@@ -2881,7 +2881,7 @@ int mt7921_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 
 int mt7921_mcu_lp_drv_pmctrl(struct mt7921_dev *dev)
 {
-	int i;
+	int i, ret;
 
 	for (i = 0; i < MT7921_DRV_OWN_RETRY_COUNT; i++) {
 		mt76_wr(dev, MT_CONN_ON_LPCTL, PCIE_LPCR_HOST_CLR_OWN);
@@ -2894,6 +2894,10 @@ int mt7921_mcu_lp_drv_pmctrl(struct mt7921_dev *dev)
 		dev_err(dev->mt76.dev, "driver own failed\n");
 		return -EIO;
 	}
+
+	ret = mt7921_driver_own(dev);
+	if (ret)
+		return ret;
 
 	return 0;
 }
