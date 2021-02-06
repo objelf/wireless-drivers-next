@@ -33,6 +33,12 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	if (type == PKT_TYPE_RX_EVENT && flag == 0x1)
 		type = PKT_TYPE_NORMAL_MCU;
 
+	if (mt76_testmode_enabled(&mdev->phy) &&
+	    type == PKT_TYPE_TXRX_NOTIFY) {
+		dev_kfree_skb(skb);
+		return;
+	}
+
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:
 		mt7921_mac_tx_free(dev, skb);

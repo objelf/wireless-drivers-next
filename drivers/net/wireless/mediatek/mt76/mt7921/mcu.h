@@ -320,4 +320,27 @@ struct mt7921_mcu_tx_done_event {
 
 	u8 rsv1[32];
 } __packed;
+
+struct mt7921_tm_cmd {
+        u8 action;
+        u32 data0;
+        u32 data1;
+};
+
+struct mt7921_tm_evt {
+        u32 data0;
+        u32 data1;
+};
+
+struct mt7921_rftest_cmd {
+	u8 action;
+	u8 rsv[3];
+	__le32 data0;
+	__le32 data1;
+} __packed;
+
+struct mt7921_rftest_evt {
+	__le32 data0;
+	__le32 data1;
+} __packed;
 #endif

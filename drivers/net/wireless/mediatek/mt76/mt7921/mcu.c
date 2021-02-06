@@ -183,6 +183,9 @@ mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	case MCU_EXT_CMD_EFUSE_ACCESS:
 		ret = mt7921_mcu_parse_eeprom(mdev, skb);
 		break;
+	case MCU_CMD_GET_RX_STATS:
+		/* XXX testmode rx stats */
+		break;
 	case MCU_UNI_CMD_DEV_INFO_UPDATE:
 	case MCU_UNI_CMD_BSS_INFO_UPDATE:
 	case MCU_UNI_CMD_STA_REC_UPDATE:
