@@ -40,7 +40,7 @@ static void _mt76_pci_config_L1(struct pci_dev *pdev, u8 enable)
 			return;
 		reg32 &= ~(PCI_EXP_LNKCTL_ASPMC);
 	}
-	dev_info(&pdev->dev, "%s ASPM L1\n", (enable)?"enabling":"disabling");
+	dev_dbg(&pdev->dev, "%s ASPM L1\n", (enable)?"enabling":"disabling");
 
 	pci_write_config_dword(pdev, pos + PCI_EXP_LNKCTL, reg32);
 }
@@ -73,7 +73,7 @@ static void _mt76_pci_config_L1ss(struct pci_dev *pdev, u8 enable)
 		reg32 &= ~(PCIE_L1SS_CTL_CHK);
 	}
 
-	dev_info(&pdev->dev, "%s ASPM L1SS\n", (enable)?"enabling":"disabling");
+	dev_dbg(&pdev->dev, "%s ASPM L1SS\n", (enable)?"enabling":"disabling");
 
 	pci_write_config_dword(pdev, pos + PCI_L1SS_CTL1, reg32);
 }
