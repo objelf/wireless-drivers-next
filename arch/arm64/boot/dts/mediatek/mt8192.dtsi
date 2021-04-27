@@ -1138,6 +1138,7 @@
 			resets = <&infracfg_rst 2>,
 				 <&infracfg_rst 3>;
 			reset-names = "phy", "mac";
+			disable-dvfsrc-vlt-req;
 			interrupts = <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH 0>;
 			bus-range = <0x00 0xff>;
 			ranges = <0x82000000 0 0x12000000 0x0 0x12000000 0 0x0800000>,
