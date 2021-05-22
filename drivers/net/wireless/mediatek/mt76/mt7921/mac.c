@@ -1252,6 +1252,14 @@ mt7921_mac_reset(struct mt7921_dev *dev)
 	return __mt7921_start(&dev->phy);
 }
 
+static void mt7921_dump_mcu_pc(struct mt7921_dev *dev)
+{
+	unsigned long end = jiffies + HZ / 2;
+
+	while (time_is_after_jiffies(end))
+		dev_err(dev->mt76.dev, "PC = 0x%08x\n", mt76_rr(dev, 0xe0204));
+}
+
 /* system error recovery */
 void mt7921_mac_reset_work(struct work_struct *work)
 {
@@ -1272,6 +1280,8 @@ void mt7921_mac_reset_work(struct work_struct *work)
 	mutex_lock(&dev->mt76.mutex);
 	for (i = 0; i < 10; i++) {
 		__mt7921_mcu_drv_pmctrl(dev);
+
+		mt7921_dump_mcu_pc(dev);
 
 		if (!mt7921_mac_reset(dev))
 			break;
