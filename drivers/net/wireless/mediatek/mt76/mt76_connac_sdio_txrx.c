@@ -112,8 +112,9 @@ static int mt76_connac_sdio_rx_run_queue(struct mt76_dev *dev,
 	for (i = 0; i < intr->rx.num[qid]; i++) {
 		int index = (q->head + i) % q->ndesc;
 		struct mt76_queue_entry *e = &q->entry[index];
+		__le32 *rxd = (__le32 *)buf;
 
-		len = intr->rx.len[qid][i];
+		len = FIELD_GET(GENMASK(15, 0), le32_to_cpu(rxd[0]));
 		e->skb = mt76_connac_sdio_build_rx_skb(buf, len,
 						       round_up(len + 4, 4));
 		if (!e->skb)
@@ -237,7 +238,9 @@ static void mt76_connac_sdio_tx_update_quota(struct mt76_sdio *sdio, bool mcu,
 	if (mcu) {
 		sdio->sched.pse_mcu_quota -= pse_size;
 	} else {
-		sdio->sched.pse_data_quota -= pse_size;
+		/* MT7921s workaround */
+		if (sdio->hw_ver == MT76_CONNAC_SDIO_VER1)
+			sdio->sched.pse_data_quota -= pse_size;
 		sdio->sched.ple_data_quota -= ple_size;
 	}
 }
@@ -282,9 +285,6 @@ static int mt76_connac_sdio_tx_run_queue(struct mt76_dev *dev,
 
 			goto next;
 		}
-
-		if (mcu && nframes > 0)
-			break;
 
 		pad = roundup(e->skb->len, 4) - e->skb->len;
 		if (len + e->skb->len + pad + 4 > MT76S_XMIT_BUF_SZ)

@@ -256,7 +256,8 @@ int mt76_connac_sdio_hw_init(struct mt76_dev *dev, struct sdio_func *func,
 	if (ret < 0)
 		goto disable_func;
 
-	ctrl = WHIER_RX0_DONE_INT_EN | WHIER_TX_DONE_INT_EN;
+	ctrl = WHIER_RX0_DONE_INT_EN | WHIER_RX1_DONE_INT_EN |
+	       WHIER_TX_DONE_INT_EN;
 	sdio_writel(func, ctrl, MCR_WHIER, &ret);
 	if (ret < 0)
 		goto disable_func;
@@ -271,7 +272,8 @@ int mt76_connac_sdio_hw_init(struct mt76_dev *dev, struct sdio_func *func,
 		if (ret < 0)
 			goto disable_func;
 		ctrl &= ~MAX_HIF_RX_LEN_NUM_V2;
-		ctrl |= FIELD_PREP(MAX_HIF_RX_LEN_NUM_V2, 32);
+		ctrl &= ~W_INT_CLR_CTRL; /* read clear */
+		ctrl |= FIELD_PREP(MAX_HIF_RX_LEN_NUM_V2, 0);
 		break;
 	}
 

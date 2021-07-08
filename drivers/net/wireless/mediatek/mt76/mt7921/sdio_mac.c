@@ -128,8 +128,17 @@ int mt7921s_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 void mt7921s_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 {
 	unsigned int headroom = MT_SDIO_TXD_SIZE + MT_SDIO_HDR_SIZE;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(e->skb);
 
 	skb_pull(e->skb, headroom);
+
+	if (info->flags & IEEE80211_TX_CTL_AMPDU)
+		info->flags |= IEEE80211_TX_STAT_AMPDU;
+
+	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+		info->flags |= IEEE80211_TX_STAT_ACK;
+
+	info->status.tx_time = 0;
 	mt76_tx_complete_skb(mdev, e->wcid, e->skb);
 }
 

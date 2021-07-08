@@ -138,6 +138,7 @@ EXPORT_SYMBOL_GPL(mt7921_mac_init);
 static int mt7921_init_hardware(struct mt7921_dev *dev)
 {
 	int ret, idx;
+	u8 test_mac[] = {0x3a, 0x84, 0x82, 0xfd, 0xeb, 0x20};
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
@@ -149,6 +150,9 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 	ret = dev->hif_ops->mcu_init(dev);
 	if (ret)
 		return ret;
+
+	if (mt76_is_sdio(&dev->mt76))
+		memcpy(dev->mphy.macaddr, test_mac, 6);
 
 	mt76_eeprom_override(&dev->mphy);
 
@@ -200,12 +204,15 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	dev->pm.stats.last_wake_event = jiffies;
 	dev->pm.stats.last_doze_event = jiffies;
 
-	if (mt76_is_sdio(&dev->mt76))
+	/* Bringup purpose */
+	if (mt76_is_sdio(&dev->mt76)) {
 		dev->pm.enable = false;
-	else
+		dev->pm.ds_enable = false;
+	}
+	else {
 		dev->pm.enable = true;
-
-	dev->pm.ds_enable = true;
+		dev->pm.ds_enable = true;
+	}
 
 	if (mt76_is_sdio(&dev->mt76))
 		hw->extra_tx_headroom += MT_SDIO_TXD_SIZE + MT_SDIO_HDR_SIZE;
