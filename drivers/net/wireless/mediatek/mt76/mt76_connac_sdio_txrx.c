@@ -81,7 +81,7 @@ static int mt76_connac_sdio_rx_run_queue(struct mt76_dev *dev,
 					 enum mt76_rxq_id qid,
 					 struct mt76s_intr *intr)
 {
-	struct mt76_queue *q = &dev->q_rx[qid];
+	struct mt76_queue *q = &dev->q_rx[0];
 	struct mt76_sdio *sdio = &dev->sdio;
 	int len = 0, err, i;
 	struct page *page;
@@ -213,6 +213,9 @@ static int mt76_connac_sdio_tx_pick_quota(struct mt76_sdio *sdio, bool mcu,
 	pse_sz = DIV_ROUND_UP(buf_sz + sdio->sched.deficit,
 			      sdio->sched.pse_page_size);
 
+	if (mcu && sdio->hw_ver == MT76_CONNAC_SDIO_VER2)
+		pse_sz = 1;
+
 	if (mcu) {
 		if (sdio->sched.pse_mcu_quota < *pse_size + pse_sz)
 			return -EBUSY;
@@ -279,6 +282,9 @@ static int mt76_connac_sdio_tx_run_queue(struct mt76_dev *dev,
 
 			goto next;
 		}
+
+		if (mcu && nframes > 0)
+			break;
 
 		pad = roundup(e->skb->len, 4) - e->skb->len;
 		if (len + e->skb->len + pad + 4 > MT76S_XMIT_BUF_SZ)

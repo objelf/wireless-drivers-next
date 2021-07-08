@@ -46,7 +46,7 @@ int mt7921s_wfsys_reset(struct mt7921_dev *dev)
 int mt7921s_mac_reset(struct mt7921_dev *dev)
 {
 	int err;
-
+return 0;
 	mt76_connac_free_pending_tx_skbs(&dev->pm, NULL);
 
 	set_bit(MT76_RESET, &dev->mphy.state);
@@ -118,6 +118,8 @@ int mt7921s_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	int pad;
 
 	mt7921s_write_txwi(dev, wcid, qid, sta, skb);
+
+	mt7921_skb_add_sdio_hdr(skb, MT7921_SDIO_DATA);
 	pad = round_up(skb->len, 4) - skb->len;
 
 	return mt76_skb_adjust_pad(skb, pad);
@@ -125,7 +127,7 @@ int mt7921s_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 
 void mt7921s_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 {
-	unsigned int headroom = MT_SDIO_TXD_SIZE;
+	unsigned int headroom = MT_SDIO_TXD_SIZE + MT_SDIO_HDR_SIZE;
 
 	skb_pull(e->skb, headroom);
 	mt76_tx_complete_skb(mdev, e->wcid, e->skb);

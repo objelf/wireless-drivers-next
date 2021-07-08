@@ -267,7 +267,11 @@ int mt76_connac_sdio_hw_init(struct mt76_dev *dev, struct sdio_func *func,
 		ctrl = FIELD_PREP(MAX_HIF_RX_LEN_NUM, 16);
 		break;
 	default:
-		ctrl = FIELD_PREP(MAX_HIF_RX_LEN_NUM_V2, 32);
+		ctrl = sdio_readl(func, MCR_WHCR, &ret);
+		if (ret < 0)
+			goto disable_func;
+		ctrl &= ~MAX_HIF_RX_LEN_NUM_V2;
+		ctrl |= FIELD_PREP(MAX_HIF_RX_LEN_NUM_V2, 32);
 		break;
 	}
 

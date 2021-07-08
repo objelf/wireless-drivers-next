@@ -150,9 +150,7 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt7921_eeprom_init(dev);
-	if (ret < 0)
-		return ret;
+	mt76_eeprom_override(&dev->mphy);
 
 	ret = mt7921_mcu_set_eeprom(dev);
 	if (ret)
@@ -176,6 +174,9 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	int ret;
 
+	dev->phy.dev = dev;
+	dev->phy.mt76 = &dev->mt76.phy;
+	dev->mt76.phy.priv = &dev->phy;
 	dev->mt76.tx_worker.fn = mt7921_tx_worker;
 
 	INIT_DELAYED_WORK(&dev->pm.ps_work, mt7921_pm_power_save_work);
@@ -198,8 +199,16 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	dev->pm.idle_timeout = MT7921_PM_TIMEOUT;
 	dev->pm.stats.last_wake_event = jiffies;
 	dev->pm.stats.last_doze_event = jiffies;
-	dev->pm.enable = true;
+
+	if (mt76_is_sdio(&dev->mt76))
+		dev->pm.enable = false;
+	else
+		dev->pm.enable = true;
+
 	dev->pm.ds_enable = true;
+
+	if (mt76_is_sdio(&dev->mt76))
+		hw->extra_tx_headroom += MT_SDIO_TXD_SIZE + MT_SDIO_HDR_SIZE;
 
 	ret = mt7921_init_hardware(dev);
 	if (ret)

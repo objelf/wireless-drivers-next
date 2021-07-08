@@ -80,6 +80,7 @@ struct mt7921_fw_region {
 #define DL_MODE_NEED_RSP		BIT(31)
 
 #define FW_START_OVERRIDE		BIT(0)
+#define FW_START_DELAY_CALIBRATION	BIT(1)
 #define FW_START_WORKING_PDA_CR4	BIT(2)
 
 #define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
@@ -214,12 +215,11 @@ mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 EXPORT_SYMBOL_GPL(mt7921_mcu_parse_response);
 
 int
-mt7921_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			int cmd, int *wait_seq)
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	int txd_len, mcu_cmd = cmd & MCU_CMD_MASK;
-	enum mt76_mcuq_id txq = MT_MCUQ_WM;
 	struct mt7921_uni_txd *uni_txd;
 	struct mt7921_mcu_txd *mcu_txd;
 	__le32 *txd;
@@ -241,10 +241,8 @@ mt7921_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (!seq)
 		seq = ++dev->mt76.mcu.msg_seq & 0xf;
 
-	if (cmd == MCU_CMD_FW_SCATTER) {
-		txq = MT_MCUQ_FWDL;
+	if (cmd == MCU_CMD_FW_SCATTER)
 		goto exit;
-	}
 
 	txd_len = cmd & MCU_UNI_PREFIX ? sizeof(*uni_txd) : sizeof(*mcu_txd);
 	txd = (__le32 *)skb_push(skb, txd_len);
@@ -308,9 +306,9 @@ exit:
 	if (wait_seq)
 		*wait_seq = seq;
 
-	return mt76_tx_queue_skb_raw(dev, mdev->q_mcu[txq], skb, 0);
+	return 0;
 }
-EXPORT_SYMBOL_GPL(mt7921_mcu_send_message);
+EXPORT_SYMBOL_GPL(mt7921_mcu_fill_message);
 
 static void
 mt7921_mcu_tx_rate_parse(struct mt76_phy *mphy,
@@ -804,7 +802,7 @@ out:
 	default:
 		ret = -EAGAIN;
 		dev_err(dev->mt76.dev, "Failed to release patch semaphore\n");
-		goto out;
+		break;
 	}
 	release_firmware(fw);
 
@@ -866,6 +864,8 @@ mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
 		offset += len;
 	}
 
+	option |= FW_START_DELAY_CALIBRATION;
+
 	if (override)
 		option |= FW_START_OVERRIDE;
 
@@ -917,11 +917,10 @@ static int mt7921_load_firmware(struct mt7921_dev *dev)
 {
 	int ret;
 
+	/* Not sure why mt7921s alway gets bit(0) set */
 	ret = mt76_get_field(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY);
-	if (ret) {
-		dev_dbg(dev->mt76.dev, "Firmware is already download\n");
-		return -EIO;
-	}
+	if (ret)
+		dev_err(dev->mt76.dev, "Firmware is already download %d\n", ret);
 
 	ret = mt7921_load_patch(dev);
 	if (ret)
@@ -968,10 +967,12 @@ int mt7921_run_firmware(struct mt7921_dev *dev)
 	if (err)
 		return err;
 
-	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
-	mt7921_mcu_fw_log_2_host(dev, 1);
+	err = mt76_connac_mcu_get_nic_capability(&dev->mphy);
+	if (err)
+		return err;
 
-	return mt76_connac_mcu_get_nic_capability(&dev->mphy);
+	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
+	return mt7921_mcu_fw_log_2_host(dev, 1);
 }
 EXPORT_SYMBOL_GPL(mt7921_run_firmware);
 
@@ -1087,7 +1088,8 @@ int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd)
 	return mt76_mcu_send_msg(&dev->mt76, cmd, &req, sizeof(req), true);
 }
 
-int mt7921_mcu_set_eeprom(struct mt7921_dev *dev)
+static int
+mt7921_mcu_set_eeprom_from_efuse(struct mt7921_dev *dev)
 {
 	struct req_hdr {
 		u8 buffer_mode;
@@ -1100,6 +1102,81 @@ int mt7921_mcu_set_eeprom(struct mt7921_dev *dev)
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
 				 &req, sizeof(req), true);
+}
+
+static int
+mt7921_mcu_set_eeprom_from_bin(struct mt7921_dev *dev)
+{
+
+#define MT7921_BIN_PAGE_SZ 0x400
+#define MT7921_BIN_PAGES	GENMASK(7, 5)
+#define MT7921_BIN_PAGEI	GENMASK(4, 2)
+
+	struct req_hdr {
+		u8 mode;
+		u8 format;
+		__le16 len;
+		u8 data[MT7921_BIN_PAGE_SZ];
+	} __packed *req;
+
+	const struct firmware *fw = NULL;
+	int i = 0, ret, n_pages, len, cur_len;
+	const void *data;
+
+	ret = request_firmware(&fw, MT7921_EEPROM_FILE, dev->mt76.dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data) {
+		dev_err(dev->mt76.dev, "Invalid firmware\n");
+		ret = -EINVAL;
+		goto fw_release;
+	}
+
+	n_pages = fw->size / MT7921_BIN_PAGE_SZ;
+	len = fw->size;
+	data = fw->data;
+
+	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		goto fw_release;
+
+	req->mode = EE_MODE_BUFFER;
+
+	while (len > 0) {
+		cur_len = min_t(int, MT7921_BIN_PAGE_SZ, len);
+
+		req->format = EE_FORMAT_WHOLE |
+			      FIELD_PREP(MT7921_BIN_PAGES, n_pages) |
+			      FIELD_PREP(MT7921_BIN_PAGEI, i);
+		req->len = cpu_to_le16(cur_len);
+
+		memset(req->data, 0, MT7921_BIN_PAGE_SZ);
+		memcpy(req->data, data, cur_len);
+
+		ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
+					req, 4 + cur_len, true);
+		if (ret)
+			goto req_free;
+
+		data += cur_len;
+		len -= cur_len;
+		i += 1;
+	}
+
+req_free:
+	kfree(req);
+fw_release:
+	release_firmware(fw);
+	return ret;
+}
+
+int mt7921_mcu_set_eeprom(struct mt7921_dev *dev)
+{
+	if (!mt76_is_sdio(&dev->mt76))
+		return mt7921_mcu_set_eeprom_from_efuse(dev);
+	else
+		return mt7921_mcu_set_eeprom_from_bin(dev);
 }
 EXPORT_SYMBOL_GPL(mt7921_mcu_set_eeprom);
 

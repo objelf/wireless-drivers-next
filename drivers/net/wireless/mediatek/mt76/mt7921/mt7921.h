@@ -32,6 +32,7 @@
 
 #define MT7921_FIRMWARE_WM		"mediatek/WIFI_RAM_CODE_MT7961_1.bin"
 #define MT7921_ROM_PATCH		"mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin"
+#define MT7921_EEPROM_FILE		"mediatek/EEPROM_MT7961_1.bin"
 
 #define MT7921_EEPROM_SIZE		3584
 #define MT7921_TOKEN_SIZE		8192
@@ -44,6 +45,16 @@
 #define MT7921_SKU_RATE_NUM		161
 #define MT7921_SKU_MAX_DELTA_IDX	MT7921_SKU_RATE_NUM
 #define MT7921_SKU_TABLE_SIZE		(MT7921_SKU_RATE_NUM + 1)
+
+#define MT7921_SDIO_HDR_TX_BYTES	GENMASK(15, 0)
+#define MT7921_SDIO_HDR_PKT_TYPE	GENMASK(17, 16)
+
+enum mt7921_sdio_pkt_type {
+	MT7921_SDIO_TXD,
+	MT7921_SDIO_DATA,
+	MT7921_SDIO_CMD,
+	MT7921_SDIO_FWDL,
+};
 
 #define to_rssi(field, rxv)		((FIELD_GET(field, rxv) - 220) / 2)
 #define to_rcpi(rssi)			(2 * (rssi) + 220)
@@ -164,8 +175,6 @@ struct mt7921_dev {
 	struct mt7921_phy phy;
 	struct tasklet_struct irq_tasklet;
 
-	u16 chainmask;
-
 	struct work_struct reset_work;
 	bool hw_full_reset:1;
 	bool hw_init_done:1;
@@ -256,12 +265,6 @@ u32 mt7921_reg_map(struct mt7921_dev *dev, u32 addr);
 int __mt7921_start(struct mt7921_phy *phy);
 int mt7921_register_device(struct mt7921_dev *dev);
 void mt7921_unregister_device(struct mt7921_dev *dev);
-int mt7921_eeprom_init(struct mt7921_dev *dev);
-void mt7921_eeprom_parse_band_config(struct mt7921_phy *phy);
-int mt7921_eeprom_get_target_power(struct mt7921_dev *dev,
-				   struct ieee80211_channel *chan,
-				   u8 chain_idx);
-void mt7921_eeprom_init_sku(struct mt7921_dev *dev);
 int mt7921_dma_init(struct mt7921_dev *dev);
 int mt7921_wpdma_reset(struct mt7921_dev *dev, bool force);
 int mt7921_wpdma_reinit_cond(struct mt7921_dev *dev);
@@ -332,6 +335,18 @@ mt7921_l1_rmw(struct mt7921_dev *dev, u32 addr, u32 mask, u32 val)
 static inline bool mt7921_dma_need_reinit(struct mt7921_dev *dev)
 {
 	return !mt76_get_field(dev, MT_WFDMA_DUMMY_CR, MT_WFDMA_NEED_REINIT);
+}
+
+
+static inline void mt7921_skb_add_sdio_hdr(struct sk_buff *skb,
+					   enum mt7921_sdio_pkt_type type)
+{
+	u32 hdr;
+
+	hdr = FIELD_PREP(MT7921_SDIO_HDR_TX_BYTES, skb->len + sizeof(hdr)) |
+	      FIELD_PREP(MT7921_SDIO_HDR_PKT_TYPE, type);
+
+	put_unaligned_le32(hdr, skb_push(skb, sizeof(hdr)));
 }
 
 int mt7921_mac_init(struct mt7921_dev *dev);
@@ -419,7 +434,7 @@ int mt7921s_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  struct mt76_tx_info *tx_info);
 void mt7921s_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 bool mt7921s_tx_status_data(struct mt76_dev *mdev, u8 *update);
-int mt7921_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			    int cmd, int *wait_seq);
 int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq);
