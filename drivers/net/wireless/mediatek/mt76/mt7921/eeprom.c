@@ -35,12 +35,15 @@ static int mt7921_check_eeprom(struct mt7921_dev *dev)
 	mt7921_eeprom_read(dev, MT_EE_CHIP_ID);
 	val = get_unaligned_le16(eeprom);
 
+	return 0;
+/*
 	switch (val) {
 	case 0x7961:
 		return 0;
 	default:
 		return -EINVAL;
 	}
+*/
 }
 
 void mt7921_eeprom_parse_band_config(struct mt7921_phy *phy)
