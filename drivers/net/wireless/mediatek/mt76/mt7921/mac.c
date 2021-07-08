@@ -39,6 +39,7 @@ static struct mt76_wcid *mt7921_rx_get_wcid(struct mt7921_dev *dev,
 void mt7921_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 {
 }
+EXPORT_SYMBOL_GPL(mt7921_sta_ps);
 
 bool mt7921_mac_wtbl_update(struct mt7921_dev *dev, int idx, u32 mask)
 {
@@ -130,6 +131,7 @@ void mt7921_mac_sta_poll(struct mt7921_dev *dev)
 
 	rcu_read_unlock();
 }
+EXPORT_SYMBOL_GPL(mt7921_mac_sta_poll);
 
 static void
 mt7921_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
@@ -828,6 +830,7 @@ void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 
 	mt7921_update_txs(wcid, txwi);
 }
+EXPORT_SYMBOL_GPL(mt7921_mac_write_txwi);
 
 void
 mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
@@ -853,6 +856,7 @@ mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 	if (!test_and_set_bit(tid, &msta->ampdu_state))
 		ieee80211_start_tx_ba_session(sta, tid, 0);
 }
+EXPORT_SYMBOL_GPL(mt7921_tx_check_aggr);
 
 void
 mt7921_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -889,6 +893,7 @@ mt7921_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
 	info->status.tx_time = 0;
 	ieee80211_tx_status_ext(hw, &status);
 }
+EXPORT_SYMBOL_GPL(mt7921_tx_complete_status);
 
 void mt7921_mac_reset_counters(struct mt7921_phy *phy)
 {
@@ -1009,6 +1014,7 @@ void mt7921_update_channel(struct mt76_phy *mphy)
 
 	mt76_connac_power_save_sched(mphy, &dev->pm);
 }
+EXPORT_SYMBOL_GPL(mt7921_update_channel);
 
 static void
 mt7921_vif_connect_iter(void *priv, u8 *mac,
@@ -1295,3 +1301,4 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(mt7921_queue_rx_skb);
