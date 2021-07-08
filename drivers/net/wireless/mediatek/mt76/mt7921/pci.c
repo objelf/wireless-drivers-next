@@ -166,6 +166,10 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_free_dev;
 
+	ret = mt7921_dma_init(dev);
+	if (ret)
+		return ret;
+
 	ret = mt7921_register_device(dev);
 	if (ret)
 		goto err_free_irq;
