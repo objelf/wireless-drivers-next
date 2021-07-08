@@ -238,9 +238,7 @@ static void mt76_connac_sdio_tx_update_quota(struct mt76_sdio *sdio, bool mcu,
 	if (mcu) {
 		sdio->sched.pse_mcu_quota -= pse_size;
 	} else {
-		/* MT7921s workaround */
-		if (sdio->hw_ver == MT76_CONNAC_SDIO_VER1)
-			sdio->sched.pse_data_quota -= pse_size;
+		sdio->sched.pse_data_quota -= pse_size;
 		sdio->sched.ple_data_quota -= ple_size;
 	}
 }

@@ -204,7 +204,7 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	dev->pm.stats.last_wake_event = jiffies;
 	dev->pm.stats.last_doze_event = jiffies;
 
-	/* Bringup purpose */
+	/* Will enable runtime pm once the validation is done */
 	if (mt76_is_sdio(&dev->mt76)) {
 		dev->pm.enable = false;
 		dev->pm.ds_enable = false;

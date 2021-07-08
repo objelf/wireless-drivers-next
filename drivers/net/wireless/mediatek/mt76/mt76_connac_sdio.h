@@ -19,6 +19,7 @@
 #define MCR_WHCR			0x000C
 #define W_INT_CLR_CTRL			BIT(1)
 #define RECV_MAILBOX_RD_CLR_EN		BIT(2)
+#define WF_SYS_RSTB			BIT(4) /* supported in V2 */
 #define WF_WHOLE_PATH_RSTB		BIT(5) /* supported in V2 */
 #define WF_SDIO_WF_PATH_RSTB		BIT(6) /* supported in V2 */
 #define MAX_HIF_RX_LEN_NUM		GENMASK(13, 8)

@@ -46,7 +46,6 @@ int mt7921s_wfsys_reset(struct mt7921_dev *dev)
 int mt7921s_mac_reset(struct mt7921_dev *dev)
 {
 	int err;
-return 0;
 	mt76_connac_free_pending_tx_skbs(&dev->pm, NULL);
 
 	set_bit(MT76_RESET, &dev->mphy.state);
@@ -69,6 +68,7 @@ return 0;
 	mt76_worker_enable(&dev->mt76.sdio.status_worker);
 	mt76_worker_enable(&dev->mt76.sdio.net_worker);
 
+	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	mt76_connac_sdio_enable_irq(&dev->mt76);
 

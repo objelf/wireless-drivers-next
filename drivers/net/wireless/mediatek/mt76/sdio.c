@@ -157,7 +157,7 @@ static void mt76s_net_worker(struct mt76_worker *w)
 
 static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	struct mt76_queue_entry entry;
+	struct mt76_queue_entry *entry;
 	int nframes = 0;
 	bool mcu;
 
@@ -169,15 +169,16 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 		if (!q->entry[q->tail].done)
 			break;
 
-		entry = q->entry[q->tail];
+		entry = &q->entry[q->tail];
 		q->entry[q->tail].done = false;
 
 		if (mcu) {
-			dev_kfree_skb(entry.skb);
-			entry.skb = NULL;
+			dev_kfree_skb(entry->skb);
+			entry->skb = NULL;
 		}
 
-		mt76_queue_tx_complete(dev, q, &entry);
+		mt76_queue_tx_complete(dev, q, entry);
+		entry->skb = NULL;
 		nframes++;
 	}
 

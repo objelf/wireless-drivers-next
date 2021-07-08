@@ -658,10 +658,6 @@ mt7921_mac_write_txwi_8023(struct mt7921_dev *dev, __le32 *txwi,
 	      FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype);
 	txwi[7] |= cpu_to_le32(val);
 
-	/* Needed to check if needed on MT7921s */
-	if (!is_mmio)
-		txwi[8] = FIELD_PREP(MT_TXD8_H_TYPE, fc_type) |
-			  FIELD_PREP(MT_TXD8_H_SUB_TYPE, fc_stype);
 }
 
 static void
@@ -740,10 +736,6 @@ mt7921_mac_write_txwi_80211(struct mt7921_dev *dev, __le32 *txwi,
 	      FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype);
 	txwi[7] |= cpu_to_le32(val);
 
-	/* Needed to check if needed on MT7921s */
-	if (!is_mmio)
-		txwi[8] = FIELD_PREP(MT_TXD8_H_TYPE, fc_type) |
-			  FIELD_PREP(MT_TXD8_H_SUB_TYPE, fc_stype);
 }
 
 static void mt7921_update_txs(struct mt76_wcid *wcid, __le32 *txwi)
@@ -1170,6 +1162,7 @@ void mt7921_pm_wake_work(struct work_struct *work)
 		int i;
 
 		if (mt76_is_sdio(mdev)) {
+			mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
 			mt76_worker_schedule(&mdev->sdio.txrx_worker);
 		} else {
 			mt76_for_each_q_rx(mdev, i)
