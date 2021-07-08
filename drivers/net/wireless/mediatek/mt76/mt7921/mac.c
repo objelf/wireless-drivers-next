@@ -1043,7 +1043,7 @@ void mt7921_mac_reset_work(struct work_struct *work)
 
 	mutex_lock(&dev->mt76.mutex);
 	for (i = 0; i < 10; i++) {
-		__mt7921_mcu_drv_pmctrl(dev);
+		dev->hif_ops->drv_own(dev);
 
 		if (!dev->hif_ops->reset(dev))
 			break;

@@ -149,7 +149,7 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 	 */
 	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
 
-	ret = mt7921_mcu_init(dev);
+	ret = dev->hif_ops->mcu_init(dev);
 	if (ret)
 		return ret;
 
@@ -254,6 +254,7 @@ void mt7921_unregister_device(struct mt7921_dev *dev)
 	mt76_unregister_device(&dev->mt76);
 	mt7921_tx_token_put(dev);
 	mt7921_dma_cleanup(dev);
+	mt7921_wfsys_reset(dev);
 	mt7921_mcu_exit(dev);
 
 	tasklet_disable(&dev->irq_tasklet);
