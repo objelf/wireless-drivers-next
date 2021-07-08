@@ -147,6 +147,10 @@ struct mt7921_phy {
 	struct delayed_work scan_work;
 };
 
+struct mt7921_hif_ops {
+	int (*reset)(struct mt7921_dev *dev);
+};
+
 struct mt7921_dev {
 	union { /* must be first */
 		struct mt76_dev mt76;
@@ -170,6 +174,8 @@ struct mt7921_dev {
 
 	struct mt76_connac_pm pm;
 	struct mt76_connac_coredump coredump;
+
+	const struct mt7921_hif_ops *hif_ops;
 };
 
 enum {
@@ -388,4 +394,11 @@ void mt7921_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif);
 void mt7921_coredump_work(struct work_struct *work);
 int mt7921_wfsys_reset(struct mt7921_dev *dev);
 int mt7921_get_txpwr_info(struct mt7921_dev *dev, struct mt7921_txpwr *txpwr);
+
+void mt7921_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
+			       struct ieee80211_sta *sta, u8 stat,
+			       struct list_head *free_list);
+void mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi);
+void mt7921_mac_sta_poll(struct mt7921_dev *dev);
+int mt7921e_mac_reset(struct mt7921_dev *dev);
 #endif
