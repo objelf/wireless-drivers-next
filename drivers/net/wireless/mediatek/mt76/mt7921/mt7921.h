@@ -268,6 +268,7 @@ int mt7921_wpdma_reinit_cond(struct mt7921_dev *dev);
 void mt7921_dma_cleanup(struct mt7921_dev *dev);
 int mt7921_run_firmware(struct mt7921_dev *dev);
 int mt7921e_mcu_init(struct mt7921_dev *dev);
+int mt7921s_mcu_init(struct mt7921_dev *dev);
 int mt7921_mcu_add_key(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 		       struct mt7921_sta *msta, struct ieee80211_key_conf *key,
 		       enum set_key_cmd cmd);
@@ -397,6 +398,7 @@ int mt7921_mac_set_beacon_filter(struct mt7921_phy *phy,
 void mt7921_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif);
 void mt7921_coredump_work(struct work_struct *work);
 int mt7921_wfsys_reset(struct mt7921_dev *dev);
+int mt7921s_wfsys_reset(struct mt7921_dev *dev);
 int mt7921_get_txpwr_info(struct mt7921_dev *dev, struct mt7921_txpwr *txpwr);
 
 void mt7921_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -405,12 +407,21 @@ void mt7921_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
 void mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi);
 void mt7921_mac_sta_poll(struct mt7921_dev *dev);
 int mt7921e_mac_reset(struct mt7921_dev *dev);
+int mt7921s_mac_reset(struct mt7921_dev *dev);
 void mt7921e_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			  struct sk_buff *skb);
+void mt7921s_unregister_device(struct mt7921_dev *dev);
+int mt7921s_mcu_drv_pmctrl(struct mt7921_dev *dev);
+int mt7921s_mcu_fw_pmctrl(struct mt7921_dev *dev);
+int mt7921s_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
+			  struct ieee80211_sta *sta,
+			  struct mt76_tx_info *tx_info);
+void mt7921s_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
+bool mt7921s_tx_status_data(struct mt76_dev *mdev, u8 *update);
 int mt7921_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			    int cmd, int *wait_seq);
 int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq);
 int mt7921_mcu_restart(struct mt76_dev *dev);
-
 #endif
