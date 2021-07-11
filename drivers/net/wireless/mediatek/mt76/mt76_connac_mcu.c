@@ -1666,6 +1666,10 @@ int mt76_connac_mcu_get_nic_capability(struct mt76_phy *phy)
 	if (ret)
 		return ret;
 
+	ret = skb_linearize(skb);
+	if (ret)
+		return ret;
+
 	hdr = (struct mt76_connac_cap_hdr *)skb->data;
 	if (skb->len < sizeof(*hdr)) {
 		ret = -EINVAL;
