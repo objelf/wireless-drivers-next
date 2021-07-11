@@ -43,7 +43,8 @@ static void mt7921s_irq(struct sdio_func *func)
 	struct mt7921_dev *dev = sdio_get_drvdata(func);
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
 
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.phy.state))
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.phy.state) ||
+	     test_bit(MT76_MCU_RESET, &dev->mt76.phy.state))
 		return;
 
 	mt76_worker_schedule(&sdio->txrx_worker);

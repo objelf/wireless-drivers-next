@@ -316,6 +316,31 @@ static const struct mt76_queue_ops sdio_queue_ops = {
 	.tx_queue_skb_raw = mt76s_tx_queue_skb_raw,
 };
 
+void mt76s_free_all_txqs(struct mt76_dev *dev)
+{
+	int i, j;
+
+	for (i = 0; i <= MT_TXQ_PSD + 1; i++) {
+		struct mt76_queue *q = dev->phy.q_tx[i];
+
+		if (i <= MT_TXQ_PSD)
+			q = dev->phy.q_tx[i];
+		else
+			q = dev->q_mcu[MT_MCUQ_WM];
+
+		for (j = 0; j < q->ndesc; j++) {
+			struct mt76_queue_entry *e = &q->entry[j];
+
+			if (!e->skb)
+				continue;
+
+			dev_kfree_skb(e->skb);
+			e->skb = NULL;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(mt76s_free_all_txqs);
+
 void mt76s_deinit(struct mt76_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->sdio;

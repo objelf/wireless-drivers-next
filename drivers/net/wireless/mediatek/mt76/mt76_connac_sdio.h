@@ -19,8 +19,11 @@
 #define MCR_WHCR			0x000C
 #define W_INT_CLR_CTRL			BIT(1)
 #define RECV_MAILBOX_RD_CLR_EN		BIT(2)
+#define WF_WHOLE_PATH_RSTB		BIT(5) /* supported in V2 */
+#define WF_SDIO_WF_PATH_RSTB		BIT(6) /* supported in V2 */
 #define MAX_HIF_RX_LEN_NUM		GENMASK(13, 8)
 #define MAX_HIF_RX_LEN_NUM_V2		GENMASK(14, 8) /* supported in V2 */
+#define WF_RST_DONE			BIT(15) /* supported in V2 */
 #define RX_ENHANCE_MODE			BIT(16)
 
 #define MCR_WHISR			0x0010
@@ -179,4 +182,6 @@ int mt76_connac_sdio_hw_init(struct mt76_dev *dev, struct sdio_func *func,
 			     int hw_ver, sdio_irq_handler_t *irq_handler);
 int mt76_connac_sdio_init(struct mt76_dev *dev,
 			  void (*txrx_worker)(struct mt76_worker *));
+void mt76_connac_sdio_enable_irq(struct mt76_dev *dev);
+void mt76_connac_sdio_disable_irq(struct mt76_dev *dev);
 #endif

@@ -331,6 +331,26 @@ int mt76_connac_sdio_init(struct mt76_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_sdio_init);
 
+void mt76_connac_sdio_enable_irq(struct mt76_dev *dev)
+{
+	struct mt76_sdio *sdio = &dev->sdio;
+
+	sdio_claim_host(sdio->func);
+	sdio_writel(sdio->func, WHLPCR_INT_EN_SET, MCR_WHLPCR, NULL);
+	sdio_release_host(sdio->func);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_sdio_enable_irq);
+
+void mt76_connac_sdio_disable_irq(struct mt76_dev *dev)
+{
+	struct mt76_sdio *sdio = &dev->sdio;
+
+	sdio_claim_host(sdio->func);
+	sdio_writel(sdio->func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, NULL);
+	sdio_release_host(sdio->func);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_sdio_disable_irq);
+
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_LICENSE("Dual BSD/GPL");

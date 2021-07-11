@@ -334,6 +334,9 @@ void mt76_connac_sdio_txrx(struct mt76_dev *dev)
 	do {
 		nframes = 0;
 
+		if (test_bit(MT76_MCU_RESET, &dev->phy.state))
+			break;
+
 		/* tx */
 		for (i = 0; i <= MT_TXQ_PSD; i++) {
 			ret = mt76_connac_sdio_tx_run_queue(dev, dev->phy.q_tx[i]);
