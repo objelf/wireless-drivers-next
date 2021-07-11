@@ -487,6 +487,7 @@ struct mt76_usb {
 };
 
 #define MT76S_XMIT_BUF_SZ	(16 * PAGE_SIZE)
+
 struct mt76_sdio {
 	struct mt76_worker txrx_worker;
 	struct mt76_worker status_worker;
@@ -498,6 +499,8 @@ struct mt76_sdio {
 
 	struct sdio_func *func;
 	void *intr_data;
+	int intr_size;
+	u8 hw_ver;
 
 	struct {
 		int pse_data_quota;

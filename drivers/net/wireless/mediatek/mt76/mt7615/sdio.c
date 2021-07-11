@@ -113,7 +113,8 @@ static int mt7663s_probe(struct sdio_func *func,
 	if (ret < 0)
 		goto error;
 
-	ret = mt76_connac_sdio_hw_init(mdev, func, mt7663s_irq);
+	ret = mt76_connac_sdio_hw_init(mdev, func, MT76_CONNAC_SDIO_VER1,
+				       mt7663s_irq);
 	if (ret)
 		goto error;
 

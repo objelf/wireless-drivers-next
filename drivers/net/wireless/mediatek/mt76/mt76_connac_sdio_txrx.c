@@ -133,35 +133,73 @@ static int mt76_connac_sdio_rx_run_queue(struct mt76_dev *dev,
 	return i;
 }
 
+static void mt76_connac_sdio_intr_parse(struct mt76_dev *dev,
+					void *data,
+					struct mt76s_intr *intr)
+{
+	struct mt76_connac_sdio_intr_v1 *intr_v1;
+	struct mt76_connac_sdio_intr_v2 *intr_v2;
+	int i;
+
+	switch (dev->sdio.hw_ver) {
+	case MT76_CONNAC_SDIO_VER1:
+		intr_v1 = data;
+		intr->isr =  intr_v1->isr;
+		intr->tx.wtqcr = intr_v1->tx.wtqcr;
+		for (i = 0; i < 2 ; i++) {
+			intr->rx.num[i] = intr_v1->rx.num[i];
+			intr->rx.len[i] = intr_v1->rx.len[i];
+			intr->rec_mb[i] = intr_v1->rec_mb[i];
+		}
+		break;
+	default:
+		intr_v2 = data;
+		intr->isr =  intr_v2->isr;
+		intr->tx.wtqcr = intr_v2->tx.wtqcr;
+		for (i = 0; i < 2 ; i++) {
+			intr->rx.num[i] = intr_v2->rx.num[i];
+			if (!i)
+				intr->rx.len[0] = intr_v2->rx.len0;
+			else
+				intr->rx.len[1] = intr_v2->rx.len1;
+			intr->rec_mb[i] = intr_v2->rec_mb[i];
+		}
+		break;
+	}
+}
+
 static int mt76_connac_sdio_rx_handler(struct mt76_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
-	struct mt76s_intr *intr = sdio->intr_data;
+	void *data = sdio->intr_data;
+	struct mt76s_intr intr;
 	int nframes = 0, ret;
 
-	ret = sdio_readsb(sdio->func, intr, MCR_WHISR, sizeof(*intr));
+	ret = sdio_readsb(sdio->func, data, MCR_WHISR, sdio->intr_size);
 	if (ret < 0)
 		return ret;
 
-	trace_dev_irq(dev, intr->isr, 0);
+	mt76_connac_sdio_intr_parse(dev, data, &intr);
 
-	if (intr->isr & WHIER_RX0_DONE_INT_EN) {
-		ret = mt76_connac_sdio_rx_run_queue(dev, 0, intr);
+	trace_dev_irq(dev, intr.isr, 0);
+
+	if (intr.isr & WHIER_RX0_DONE_INT_EN) {
+		ret = mt76_connac_sdio_rx_run_queue(dev, 0, &intr);
 		if (ret > 0) {
 			mt76_worker_schedule(&sdio->net_worker);
 			nframes += ret;
 		}
 	}
 
-	if (intr->isr & WHIER_RX1_DONE_INT_EN) {
-		ret = mt76_connac_sdio_rx_run_queue(dev, 1, intr);
+	if (intr.isr & WHIER_RX1_DONE_INT_EN) {
+		ret = mt76_connac_sdio_rx_run_queue(dev, 1, &intr);
 		if (ret > 0) {
 			mt76_worker_schedule(&sdio->net_worker);
 			nframes += ret;
 		}
 	}
 
-	nframes += !!mt76_connac_sdio_refill_sched_quota(dev, intr->tx.wtqcr);
+	nframes += !!mt76_connac_sdio_refill_sched_quota(dev, intr.tx.wtqcr);
 
 	return nframes;
 }
