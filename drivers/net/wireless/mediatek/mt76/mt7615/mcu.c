@@ -219,6 +219,7 @@ int mt7615_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		break;
 	}
 	default:
+		skb_pull(skb, sizeof(*rxd));
 		break;
 	}
 

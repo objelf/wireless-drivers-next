@@ -7,8 +7,6 @@
 #ifndef __MT76_CONNAC_SDIO_H
 #define __MT76_CONNAC_SDIO_H
 
-#define MT_PSE_PAGE_SZ			128
-
 #define MCR_WCIR			0x0000
 #define MCR_WHLPCR			0x0004
 #define WHLPCR_FW_OWN_REQ_CLR		BIT(9)

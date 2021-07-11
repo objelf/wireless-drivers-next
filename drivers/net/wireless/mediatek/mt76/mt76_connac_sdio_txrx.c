@@ -172,7 +172,8 @@ static int mt76_connac_sdio_tx_pick_quota(struct mt76_sdio *sdio, bool mcu,
 {
 	int pse_sz;
 
-	pse_sz = DIV_ROUND_UP(buf_sz + sdio->sched.deficit, MT_PSE_PAGE_SZ);
+	pse_sz = DIV_ROUND_UP(buf_sz + sdio->sched.deficit,
+			      sdio->sched.pse_page_size);
 
 	if (mcu) {
 		if (sdio->sched.pse_mcu_quota < *pse_size + pse_sz)

@@ -16,24 +16,6 @@
 #include "regs.h"
 #include "../mt76_connac_sdio.h"
 
-static int mt7663s_mcu_init_sched(struct mt7615_dev *dev)
-{
-	struct mt76_sdio *sdio = &dev->mt76.sdio;
-	u32 txdwcnt;
-
-	sdio->sched.pse_data_quota = mt76_get_field(dev, MT_PSE_PG_HIF0_GROUP,
-						    MT_HIF0_MIN_QUOTA);
-	sdio->sched.pse_mcu_quota = mt76_get_field(dev, MT_PSE_PG_HIF1_GROUP,
-						   MT_HIF1_MIN_QUOTA);
-	sdio->sched.ple_data_quota = mt76_get_field(dev, MT_PLE_PG_HIF0_GROUP,
-						    MT_HIF0_MIN_QUOTA);
-	txdwcnt = mt76_get_field(dev, MT_PP_TXDWCNT,
-				 MT_PP_TXDWCNT_TX1_ADD_DW_CNT);
-	sdio->sched.deficit = txdwcnt << 2;
-
-	return 0;
-}
-
 static int
 mt7663s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			 int cmd, int *seq)
@@ -168,7 +150,7 @@ int mt7663s_mcu_init(struct mt7615_dev *dev)
 	mcu_ops->set_fw_ctrl = mt7663s_mcu_fw_pmctrl;
 	dev->mcu_ops = mcu_ops;
 
-	ret = mt7663s_mcu_init_sched(dev);
+	ret = mt76_connac_mcu_get_nic_capability(&dev->mphy);
 	if (ret)
 		return ret;
 
