@@ -5,6 +5,7 @@ obj-$(CONFIG_MT76_SDIO) += mt76-sdio.o
 obj-$(CONFIG_MT76x02_LIB) += mt76x02-lib.o
 obj-$(CONFIG_MT76x02_USB) += mt76x02-usb.o
 obj-$(CONFIG_MT76_CONNAC_LIB) += mt76-connac-lib.o
+obj-$(CONFIG_MT76_CONNAC_SDIO) += mt76-connac-sdio.o
 
 mt76-y := \
 	mmio.o util.o trace.o dma.o mac80211.o debugfs.o eeprom.o \
@@ -28,6 +29,7 @@ mt76x02-lib-y := mt76x02_util.o mt76x02_mac.o mt76x02_mcu.o \
 mt76x02-usb-y := mt76x02_usb_mcu.o mt76x02_usb_core.o
 
 mt76-connac-lib-y := mt76_connac_mcu.o mt76_connac_mac.o
+mt76-connac-sdio-y := mt76_connac_sdio.o mt76_connac_sdio_txrx.o
 
 obj-$(CONFIG_MT76x0_COMMON) += mt76x0/
 obj-$(CONFIG_MT76x2_COMMON) += mt76x2/
