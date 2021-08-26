@@ -160,9 +160,7 @@ static int __mt7921_init_hardware(struct mt7921_dev *dev)
 	if (ret)
 		goto out;
 
-	ret = mt7921_eeprom_init(dev);
-	if (ret)
-		goto out;
+	mt76_eeprom_override(&dev->mphy);
 
 	ret = mt7921_mcu_set_eeprom(dev);
 	if (ret)
