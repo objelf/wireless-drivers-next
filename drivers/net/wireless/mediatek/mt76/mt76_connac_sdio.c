@@ -221,10 +221,12 @@ int mt76_connac_sdio_rd_rp(struct mt76_dev *dev, u32 base,
 EXPORT_SYMBOL_GPL(mt76_connac_sdio_rd_rp);
 
 int mt76_connac_sdio_hw_init(struct mt76_dev *dev, struct sdio_func *func,
-			     sdio_irq_handler_t *irq_handler)
+			     int hw_ver, sdio_irq_handler_t *irq_handler)
 {
 	u32 status, ctrl;
 	int ret;
+
+	dev->sdio.hw_ver = hw_ver;
 
 	sdio_claim_host(func);
 
@@ -255,12 +257,27 @@ int mt76_connac_sdio_hw_init(struct mt76_dev *dev, struct sdio_func *func,
 		goto disable_func;
 
 	ctrl = WHIER_RX0_DONE_INT_EN | WHIER_TX_DONE_INT_EN;
+	if (hw_ver == MT76_CONNAC2_SDIO)
+		ctrl |= WHIER_RX1_DONE_INT_EN;
 	sdio_writel(func, ctrl, MCR_WHIER, &ret);
 	if (ret < 0)
 		goto disable_func;
 
-	/* set WHISR as read clear and Rx aggregation number as 16 */
-	ctrl = FIELD_PREP(MAX_HIF_RX_LEN_NUM, 16);
+	switch (hw_ver) {
+	case MT76_CONNAC_SDIO:
+		/* set WHISR as read clear and Rx aggregation number as 16 */
+		ctrl = FIELD_PREP(MAX_HIF_RX_LEN_NUM, 16);
+		break;
+	default:
+		ctrl = sdio_readl(func, MCR_WHCR, &ret);
+		if (ret < 0)
+			goto disable_func;
+		ctrl &= ~MAX_HIF_RX_LEN_NUM_CONNAC2;
+		ctrl &= ~W_INT_CLR_CTRL; /* read clear */
+		ctrl |= FIELD_PREP(MAX_HIF_RX_LEN_NUM_CONNAC2, 0);
+		break;
+	}
+
 	sdio_writel(func, ctrl, MCR_WHCR, &ret);
 	if (ret < 0)
 		goto disable_func;
@@ -287,8 +304,17 @@ int mt76_connac_sdio_init(struct mt76_dev *dev,
 {
 	int i, ret;
 
+	switch (dev->sdio.hw_ver) {
+	case MT76_CONNAC_SDIO:
+		dev->sdio.intr_size = sizeof(struct mt76_connac_sdio_intr);
+		break;
+	default:
+		dev->sdio.intr_size = sizeof(struct mt76_connac2_sdio_intr);
+		break;
+	}
+
 	dev->sdio.intr_data = devm_kmalloc(dev->dev,
-					   sizeof(struct mt76s_intr),
+					   dev->sdio.intr_size,
 					   GFP_KERNEL);
 	if (!dev->sdio.intr_data)
 		return -ENOMEM;
