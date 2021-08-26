@@ -57,7 +57,7 @@ mt7921_tm_set(struct mt7921_dev *dev, struct mt7921_tm_cmd *req)
 		pm->enable = false;
 		cancel_delayed_work_sync(&pm->ps_work);
 		cancel_work_sync(&pm->wake_work);
-		__mt7921_mcu_drv_pmctrl(dev);
+		dev->hif_ops->drv_own(dev);
 
 		mt76_wr(dev, MT_WF_RFCR(0), dev->mt76.rxfilter);
 		phy->test.state = MT76_TM_STATE_ON;
