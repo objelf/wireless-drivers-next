@@ -183,4 +183,7 @@ int mt76_connac_sdio_hw_init(struct mt76_dev *dev, struct sdio_func *func,
 			     int hw_ver, sdio_irq_handler_t *irq_handler);
 int mt76_connac_sdio_init(struct mt76_dev *dev,
 			  void (*txrx_worker)(struct mt76_worker *));
+void mt76_connac_sdio_enable_irq(struct mt76_dev *dev);
+void mt76_connac_sdio_disable_irq(struct mt76_dev *dev);
+bool mt76_connac_sdio_txqs_empty(struct mt76_dev *dev);
 #endif
