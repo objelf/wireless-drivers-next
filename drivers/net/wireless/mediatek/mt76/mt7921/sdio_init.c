@@ -16,6 +16,8 @@ void mt7921s_unregister_device(struct mt7921_dev *dev)
 	cancel_work_sync(&pm->wake_work);
 
 	mt76s_deinit(&dev->mt76);
+	mt7921s_mcu_drv_pmctrl(dev);
+	mt7921s_wfsys_reset(dev);
 	mt7921_mcu_exit(dev);
 
 	mt76_free_device(&dev->mt76);
