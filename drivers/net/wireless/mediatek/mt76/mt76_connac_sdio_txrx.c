@@ -275,6 +275,9 @@ static int mt76_connac_sdio_tx_run_queue(struct mt76_dev *dev,
 
 		smp_rmb();
 
+		if (test_bit(MT76_MCU_RESET, &dev->phy.state))
+			goto next;
+
 		if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state)) {
 			__skb_put_zero(e->skb, 4);
 			err = __mt76_connac_sdio_xmit_queue(dev, e->skb->data,
@@ -327,6 +330,25 @@ next:
 	return nframes;
 }
 
+bool mt76_connac_sdio_txqs_empty(struct mt76_dev *dev)
+{
+	struct mt76_queue *q;
+	int i;
+
+	for (i = 0; i <= MT_TXQ_PSD + 1; i++) {
+		if (i <= MT_TXQ_PSD)
+			q = dev->phy.q_tx[i];
+		else
+			q = dev->q_mcu[MT_MCUQ_WM];
+
+		if (q->first != q->head)
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(mt76_connac_sdio_txqs_empty);
+
 void mt76_connac_sdio_txrx(struct mt76_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
@@ -353,6 +375,13 @@ void mt76_connac_sdio_txrx(struct mt76_dev *dev)
 		ret = mt76_connac_sdio_rx_handler(dev);
 		if (ret > 0)
 			nframes += ret;
+
+		if (test_bit(MT76_MCU_RESET, &dev->phy.state)) {
+			if (!mt76_connac_sdio_txqs_empty(dev))
+				continue;
+			else
+				wake_up(&sdio->wait);
+		}
 	} while (nframes > 0);
 
 	/* enable interrupt */
