@@ -856,7 +856,7 @@ static int mt7921_load_firmware(struct mt7921_dev *dev)
 	int ret;
 
 	ret = mt76_get_field(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY);
-	if (ret) {
+	if (ret && mt76_is_mmio(&dev->mt76)) {
 		dev_dbg(dev->mt76.dev, "Firmware is already download\n");
 		goto fw_loaded;
 	}
