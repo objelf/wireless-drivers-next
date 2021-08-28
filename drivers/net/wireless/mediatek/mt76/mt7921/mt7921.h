@@ -162,6 +162,7 @@ struct mt7921_dev {
 	struct work_struct reset_work;
 	bool hw_full_reset:1;
 	bool hw_init_done:1;
+	bool fw_assert:1;
 
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;
@@ -405,6 +406,8 @@ int mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev);
 int mt7921e_mcu_fw_pmctrl(struct mt7921_dev *dev);
 
 int mt7921s_mcu_init(struct mt7921_dev *dev);
+int mt7921s_wfsys_reset(struct mt7921_dev *dev);
+int mt7921s_mac_reset(struct mt7921_dev *dev);
 void mt7921s_unregister_device(struct mt7921_dev *dev);
 int mt7921s_mcu_drv_pmctrl(struct mt7921_dev *dev);
 int mt7921s_mcu_fw_pmctrl(struct mt7921_dev *dev);
