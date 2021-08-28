@@ -4,6 +4,7 @@
  */
 
 #include "mt76.h"
+#include "mt76_connac.h"
 
 struct sk_buff *
 mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
@@ -109,10 +110,13 @@ EXPORT_SYMBOL_GPL(mt76_mcu_skb_send_and_get_msg);
 int mt76_mcu_send_firmware(struct mt76_dev *dev, int cmd, const void *data,
 			   int len)
 {
-	int err, cur_len;
+	int err, cur_len, max_len = 4096 - dev->mcu_ops->headroom;
+
+	if (is_mt7921(dev) && mt76_is_sdio(dev))
+		max_len = 2048;
 
 	while (len > 0) {
-		cur_len = min_t(int, 4096 - dev->mcu_ops->headroom, len);
+		cur_len = min_t(int, max_len, len);
 
 		err = mt76_mcu_send_msg(dev, cmd, data, cur_len, false);
 		if (err)
