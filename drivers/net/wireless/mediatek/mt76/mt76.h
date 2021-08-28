@@ -501,6 +501,7 @@ struct mt76_sdio {
 	void *intr_data;
 	int intr_size;
 	u8 hw_ver;
+	wait_queue_head_t wait;
 
 	struct {
 		int pse_data_quota;

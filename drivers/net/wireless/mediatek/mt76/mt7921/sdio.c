@@ -43,7 +43,8 @@ static void mt7921s_irq(struct sdio_func *func)
 	struct mt7921_dev *dev = sdio_get_drvdata(func);
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
 
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.phy.state))
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.phy.state) ||
+	     test_bit(MT76_MCU_RESET, &dev->mt76.phy.state))
 		return;
 
 	mt76_worker_schedule(&sdio->txrx_worker);
@@ -78,6 +79,7 @@ static int mt7921s_probe(struct sdio_func *func,
 		.type = MT76_BUS_SDIO,
 	};
 	static const struct mt7921_hif_ops mt7921_sdio_ops = {
+		.reset = mt7921s_mac_reset,
 		.mcu_init = mt7921s_mcu_init,
 		.drv_own = mt7921s_mcu_drv_pmctrl,
 		.fw_own = mt7921s_mcu_fw_pmctrl,
