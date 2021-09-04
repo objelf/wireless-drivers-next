@@ -584,9 +584,6 @@ mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	case MCU_EVENT_LP_INFO:
 		mt7921_mcu_low_power_event(dev, skb);
 		break;
-	case MCU_EVENT_TX_DONE:
-		mt7921_mcu_tx_done_event(dev, skb);
-		break;
 	default:
 		break;
 	}
