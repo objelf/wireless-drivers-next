@@ -686,27 +686,31 @@ mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	struct ieee80211_sta_vht_cap *vht_cap;
 	const struct ieee80211_sta_he_cap *he_cap;
 	u8 mode = 0;
-
+pr_err("%s %d\n", __func__, __LINE__);
 	if (sta) {
+
+pr_err("%s %d\n", __func__, __LINE__);
 		ht_cap = &sta->ht_cap;
 		vht_cap = &sta->vht_cap;
 		he_cap = &sta->he_cap;
 	} else {
 		struct ieee80211_supported_band *sband;
 
+pr_err("%s %d\n", __func__, __LINE__);
 		sband = mphy->hw->wiphy->bands[band];
 		ht_cap = &sband->ht_cap;
 		vht_cap = &sband->vht_cap;
 		he_cap = ieee80211_get_he_iftype_cap(sband, vif->type);
 	}
 
+pr_err("%s %d %x %x %x\n", __func__, __LINE__, ht_cap, vht_cap, he_cap);
 	if (band == NL80211_BAND_2GHZ) {
 		mode |= PHY_TYPE_BIT_HR_DSSS | PHY_TYPE_BIT_ERP;
 
 		if (ht_cap->ht_supported)
 			mode |= PHY_TYPE_BIT_HT;
 
-		if (he_cap->has_he)
+		if (he_cap && he_cap->has_he)
 			mode |= PHY_TYPE_BIT_HE;
 	} else if (band == NL80211_BAND_5GHZ) {
 		mode |= PHY_TYPE_BIT_OFDM;
@@ -717,10 +721,11 @@ mt76_connac_get_phy_mode_v2(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 		if (vht_cap->vht_supported)
 			mode |= PHY_TYPE_BIT_VHT;
 
-		if (he_cap->has_he)
+		if (he_cap && he_cap->has_he)
 			mode |= PHY_TYPE_BIT_HE;
 	}
 
+pr_err("%s %d\n", __func__, __LINE__);
 	return mode;
 }
 
@@ -1316,9 +1321,11 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 	if (band == NL80211_BAND_6GHZ)
 		basic_req.basic.phymode_ext = BIT(0);
 
+pr_err("%s %d\n", __func__, __LINE__);
 	basic_phy = mt76_connac_get_phy_mode_v2(phy, vif, band, NULL);
 	basic_req.basic.nonht_basic_phy = cpu_to_le16(basic_phy);
 
+pr_err("%s %d\n", __func__, __LINE__);
 	switch (vif->type) {
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
@@ -1343,11 +1350,13 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 		break;
 	}
 
+pr_err("%s %d\n", __func__, __LINE__);
 	memcpy(basic_req.basic.bssid, vif->bss_conf.bssid, ETH_ALEN);
 	basic_req.basic.bmc_tx_wlan_idx = cpu_to_le16(wcid->idx);
 	basic_req.basic.sta_idx = cpu_to_le16(wcid->idx);
 	basic_req.basic.conn_state = !enable;
 
+pr_err("%s %d\n", __func__, __LINE__);
 	err = mt76_mcu_send_msg(mdev, MCU_UNI_CMD_BSS_INFO_UPDATE, &basic_req,
 				sizeof(basic_req), true);
 	if (err < 0)
