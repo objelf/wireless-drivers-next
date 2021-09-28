@@ -86,6 +86,12 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 #define INT_DEFAULT		(TX_FIFO_OVERFLOW | TX_EMPTY | RX_DONE_INT)
 #define RX_PKT_LEN		GENMASK(31, 16)
 
+#define FIRMWARE_INT_BIT31		0x80000000
+#define FIRMWARE_INT_BIT15		0x00008000
+#define FIRMWARE_INT			0x0000FE00
+#define FW_INT_IND_INDICATOR		0x00000080
+#define TX_COMPLETE_COUNT		0x00000070
+#define TX_UNDER_THOLD			0x00000008
 #define MTK_REG_CTDR		0x18
 
 #define MTK_REG_CRDR		0x1c
@@ -495,6 +501,124 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 	schedule_work(&bdev->txrx_work);
 }
 
+static int btmtksdio_open_mt7961(struct hci_dev *hdev)
+{
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+	int err;
+	u32 status, val;
+
+	bt_dev_err(hdev, "btmtksdio_open");
+	sdio_claim_host(bdev->func);
+
+	err = sdio_enable_func(bdev->func);
+	if (err < 0)
+		goto err_release_host;
+
+	err = sdio_claim_irq(bdev->func, btmtksdio_interrupt);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "Cannot claim irq, err = %d", err);
+		goto err_disable_func;
+	}
+
+	err = sdio_set_block_size(bdev->func, MTK_SDIO_BLOCK_SIZE);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "Cannot sdio_set_block_size, err = %d", err);
+		goto err_release_irq;
+	}
+
+	/* SDIO CMD 5 allows the SDIO device back to idle state an
+	 * synchronous interrupt is supported in SDIO 4-bit mode
+	 */
+	val = sdio_readl(bdev->func, MTK_REG_CSDIOCSR, &err);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "read CSDIOCSR fail, err = %d", err);
+		goto err_release_irq;
+	}
+
+	val |= SDIO_INT_CTL;
+	sdio_writel(bdev->func, val, MTK_REG_CSDIOCSR, &err);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "write CSDIOCSR fail, err = %d", err);
+		goto err_release_irq;
+	}
+
+	/* Get ownership from the device */
+	sdio_writel(bdev->func, C_FW_OWN_REQ_CLR, MTK_REG_CHLPCR, &err);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "ownship write fail, err = %d", err);
+		goto err_disable_func;
+	}
+
+	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
+				 status & C_COM_DRV_OWN, 2000, 1000000);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "Cannot get ownership from device, err = %d", err);
+		goto err_disable_func;
+	}
+
+
+	/* Setup interrupt sources */
+	sdio_writel(bdev->func, FIRMWARE_INT_BIT31 | FIRMWARE_INT_BIT15 |
+		FIRMWARE_INT | TX_FIFO_OVERFLOW |
+		FW_INT_IND_INDICATOR | TX_COMPLETE_COUNT |
+		TX_UNDER_THOLD | TX_EMPTY | RX_DONE_INT,
+		MTK_REG_CHIER, &err);
+
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "Cannot Setup interrupt, err = %d", err);
+		goto err_release_irq;
+	}
+
+	/* Enable interrupt */
+	sdio_writel(bdev->func, C_INT_EN_SET, MTK_REG_CHLPCR, &err);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "interrupt write fail, err = %d", err);
+		goto err_release_irq;
+	}
+
+	/* Write clear method */
+	val = sdio_readl(bdev->func, MTK_REG_CHCR, &err);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "write clear read1 fail, err = %d", err);
+		goto err_release_irq;
+	}
+
+	val |= C_INT_CLR_CTRL;
+	sdio_writel(bdev->func, val, MTK_REG_CHCR, &err);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "write clear write fail, err = %d", err);
+		goto err_release_irq;
+	}
+	val = sdio_readl(bdev->func, MTK_REG_CHCR, &err);
+	if (err < 0) {
+		bt_dev_err(bdev->hdev, "write clear read2 fail, err = %d", err);
+		goto err_release_irq;
+	}
+
+	if (val & C_INT_CLR_CTRL)
+		bt_dev_info(bdev->hdev, "%s write clear", __func__);
+	else
+		bt_dev_info(bdev->hdev, "%s read clear", __func__);
+
+	sdio_release_host(bdev->func);
+	device_wakeup_enable(bdev->dev);
+
+	return 0;
+
+err_release_irq:
+	sdio_release_irq(bdev->func);
+
+err_disable_func:
+	sdio_disable_func(bdev->func);
+	device_wakeup_disable(bdev->dev);
+
+err_release_host:
+	sdio_release_host(bdev->func);
+
+	return err;
+}
+
+#if 0
 static int btmtksdio_open(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
@@ -574,6 +698,7 @@ err_release_host:
 
 	return err;
 }
+#endif
 
 static int btmtksdio_close(struct hci_dev *hdev)
 {
@@ -951,7 +1076,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	hdev->bus = HCI_SDIO;
 	hci_set_drvdata(hdev, bdev);
 
-	hdev->open     = btmtksdio_open;
+	hdev->open     = btmtksdio_open_mt7961;
 	hdev->close    = btmtksdio_close;
 	hdev->flush    = btmtksdio_flush;
 	hdev->setup    = btmtksdio_setup;
