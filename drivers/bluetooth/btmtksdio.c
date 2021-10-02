@@ -464,7 +464,7 @@ poll_again:
 		rx_size = (int_status & RX_PKT_LEN) >> 16;
 		int_status &= INT_DEFAULT;
 
-		if (int_status & INT_DEFAULT)
+		if (int_status)
 			count = 0;
 
 		if (int_status & FW_OWN_BACK_INT)
@@ -486,7 +486,7 @@ poll_again:
 		}
 	} while (int_status);
 
-	if ((!int_status || tx_empty) && count < 4) {
+	if (tx_empty || count < 4) {
 		count++;
 		goto poll_again;
 	}
