@@ -335,10 +335,12 @@ void mt76s_txrx_worker(struct mt76_sdio *sdio)
 	/* disable interrupt */
 	sdio_claim_host(sdio->func);
 	sdio_writel(sdio->func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, NULL);
+	sdio_release_host(sdio->func);
 
 	do {
 		nframes = 0;
 
+		sdio_claim_host(sdio->func);
 		/* tx */
 		for (i = 0; i <= MT_TXQ_PSD; i++) {
 			ret = mt76s_tx_run_queue(dev, dev->phy.q_tx[i]);
@@ -354,6 +356,8 @@ void mt76s_txrx_worker(struct mt76_sdio *sdio)
 		if (ret > 0)
 			nframes += ret;
 
+		sdio_release_host(sdio->func);
+
 		if (test_bit(MT76_MCU_RESET, &dev->phy.state)) {
 			if (!mt76s_txqs_empty(dev))
 				continue;
@@ -363,6 +367,7 @@ void mt76s_txrx_worker(struct mt76_sdio *sdio)
 	} while (nframes > 0);
 
 	/* enable interrupt */
+	sdio_claim_host(sdio->func);
 	sdio_writel(sdio->func, WHLPCR_INT_EN_SET, MCR_WHLPCR, NULL);
 	sdio_release_host(sdio->func);
 }
