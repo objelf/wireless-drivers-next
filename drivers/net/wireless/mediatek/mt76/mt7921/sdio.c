@@ -157,7 +157,7 @@ static int mt7921s_probe(struct sdio_func *func,
 		}
 	}
 
-	ret = mt76s_alloc_rx_queue(mdev, MT_RXQ_MCU);
+	ret = mt76s_alloc_rx_queue(mdev, MT_RXQ_MAIN);
 	if (ret)
 		goto error;
 
