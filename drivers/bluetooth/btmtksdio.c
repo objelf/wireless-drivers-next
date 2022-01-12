@@ -92,6 +92,7 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 #define TX_EMPTY		BIT(2)
 #define TX_FIFO_OVERFLOW	BIT(8)
 #define FW_MAILBOX_INT		BIT(15)
+#define INT_MASK		GENMASK(15, 0)
 #define RX_PKT_LEN		GENMASK(31, 16)
 
 #define MTK_REG_CSICR		0xc0
@@ -565,7 +566,10 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 		 * FIFO.
 		 */
 		sdio_writel(bdev->func, int_status, MTK_REG_CHISR, NULL);
+pr_err("%s %d int_status = %x\n", __func__, __LINE__, int_status);
+		int_status &= INT_MASK; 
 
+pr_err("%s %d int_status = %x\n", __func__, __LINE__, int_status);
 		if ((int_status & FW_MAILBOX_INT) &&
 		     bdev->data->chipid == 0x7921) {
 			sdio_writel(bdev->func, PH2DSM0R_DRIVER_OWN,
