@@ -59,8 +59,10 @@ int mt7921e_mcu_init(struct mt7921_dev *dev)
 	return err;
 }
 
-int __mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev)
+int mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev)
 {
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt76_connac_pm *pm = &dev->pm;
 	int i, err = 0;
 
 	for (i = 0; i < MT7921_DRV_OWN_RETRY_COUNT; i++) {
@@ -73,20 +75,8 @@ int __mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev)
 	if (i == MT7921_DRV_OWN_RETRY_COUNT) {
 		dev_err(dev->mt76.dev, "driver own failed\n");
 		err = -EIO;
-	}
-
-	return err;
-}
-
-int mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev)
-{
-	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt76_connac_pm *pm = &dev->pm;
-	int err;
-
-	err = __mt7921e_mcu_drv_pmctrl(dev);
-	if (err < 0)
 		goto out;
+	}
 
 	mt7921_wpdma_reinit_cond(dev);
 	clear_bit(MT76_STATE_PM, &mphy->state);
