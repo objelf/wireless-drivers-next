@@ -2501,9 +2501,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct btmtk_hci_wmt_params wmt_params;
 	ktime_t calltime, delta, rettime;
-	struct btmtk_tci_sleep tci_sleep;
 	unsigned long long duration;
-	struct sk_buff *skb;
 	const char *fwname;
 	int err, status;
 	u32 dev_id;
@@ -2611,7 +2609,7 @@ ignore_setup_fw:
 
 	if (status == BTMTK_WMT_ON_DONE) {
 		bt_dev_info(hdev, "function already on");
-		goto ignore_func_on;
+		goto done;
 	}
 
 	/* Enable Bluetooth protocol */
@@ -2627,24 +2625,6 @@ ignore_setup_fw:
 		bt_dev_err(hdev, "Failed to send wmt func ctrl (%d)", err);
 		return err;
 	}
-
-ignore_func_on:
-	/* Apply the low power environment setup */
-	tci_sleep.mode = 0x5;
-	tci_sleep.duration = cpu_to_le16(0x640);
-	tci_sleep.host_duration = cpu_to_le16(0x640);
-	tci_sleep.host_wakeup_pin = 0;
-	tci_sleep.time_compensation = 0;
-
-	skb = __hci_cmd_sync(hdev, 0xfc7a, sizeof(tci_sleep), &tci_sleep,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		err = PTR_ERR(skb);
-		bt_dev_err(hdev, "Failed to apply low power setting (%d)", err);
-		return err;
-	}
-	kfree_skb(skb);
-
 done:
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);
@@ -2680,8 +2660,16 @@ static int btusb_mtk_shutdown(struct hci_dev *hdev)
 static void btusb_mtk_cmd_timeout(struct hci_dev *hdev)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
+	u32 dev_id;
 	u32 val;
 	int err, retry = 0;
+
+	err = btusb_mtk_id_get(data, 0x80000008, &dev_id);
+	if (err < 0)
+		return;
+
+	if (dev_id == 0x7668 || dev_id == 0x7663)
+		return;
 
 	/* It's MediaTek specific bluetooth reset mechanism via USB */
 	if (test_and_set_bit(BTUSB_HW_RESET_ACTIVE, &data->flags)) {
