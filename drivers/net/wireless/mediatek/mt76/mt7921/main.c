@@ -516,10 +516,21 @@ static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		bool enabled = !!(hw->conf.flags & IEEE80211_CONF_MONITOR);
 
-		if (!enabled)
+		if (!enabled) {
 			phy->rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
-		else
+			mt76_rmw_field(dev, MT_MDP_BNRCFR0(0),
+				       MT_MDP_RCFR0_MCU_RX_MGMT, MT_MDP_TO_WM);
+			mt76_rmw_field(dev, MT_MDP_BNRCFR0(0),
+				       MT_MDP_RCFR0_MCU_RX_CTL_NON_BAR,
+				       MT_MDP_TO_WM);
+		} else {
 			phy->rxfilter &= ~MT_WF_RFCR_DROP_OTHER_UC;
+			mt76_rmw_field(dev, MT_MDP_BNRCFR0(0),
+				       MT_MDP_RCFR0_MCU_RX_MGMT, MT_MDP_TO_HIF);
+			mt76_rmw_field(dev, MT_MDP_BNRCFR0(0),
+				       MT_MDP_RCFR0_MCU_RX_CTL_NON_BAR,
+				       MT_MDP_TO_HIF);
+		}
 
 		mt76_rmw_field(dev, MT_DMA_DCR0(0), MT_DMA_DCR0_RXD_G5_EN,
 			       enabled);
