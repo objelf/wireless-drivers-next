@@ -1139,3 +1139,65 @@ int mt7921_get_txpwr_info(struct mt7921_dev *dev, struct mt7921_txpwr *txpwr)
 
 	return 0;
 }
+
+int mt7921_set_monitor(struct mt7921_dev *dev, bool enable)
+{
+	struct mt76_phy *phy = &dev->mt76.phy;
+	struct cfg80211_chan_def *chandef = &phy->chandef;
+	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
+	enum nl80211_band band = chandef->chan->band;
+	struct {
+		u8 enable;
+		u8 band;
+		u8 control_channel;
+		u8 sco;
+		u8 bw;
+		u8 center_chan;
+		u8 center_chan2;
+		u8 dbdc_idx;
+		u8 rsv[8];
+	} req = {
+		.enable = enable,
+		.band = band,
+		.control_channel = chandef->chan->hw_value,
+		.center_chan = ieee80211_frequency_to_channel(freq1),
+		.center_chan2 = ieee80211_frequency_to_channel(freq2),
+		.dbdc_idx = 0,
+	};
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_40:
+		req.bw = CMD_CBW_40MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		req.bw = CMD_CBW_80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		req.bw = CMD_CBW_8080MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		req.bw = CMD_CBW_160MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_5:
+		req.bw = CMD_CBW_5MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		req.bw = CMD_CBW_10MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+	default:
+		req.bw = CMD_CBW_20MHZ;
+		break;
+	}
+
+	if (req.control_channel < req.center_chan)
+		req.sco = 1; /* SCA */
+	else if (req.control_channel > req.center_chan)
+		req.sco = 3; /* SCB */
+
+	dev_err(dev->mt76.dev, "%s %d enable  = %d\n", __func__, __LINE__, enable);
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_CE_CMD(SET_MONITOR),
+				 &req, sizeof(req), false);
+}
