@@ -55,7 +55,7 @@ static int mt76s_refill_sched_quota(struct mt76_dev *dev, u32 *data)
 static struct sk_buff *
 mt76s_build_rx_skb(void *data, int data_len, int buf_len)
 {
-	int len = min_t(int, data_len, MT_SKB_HEAD_LEN);
+	int len = min_t(int, data_len, 256);
 	struct sk_buff *skb;
 
 	skb = alloc_skb(len, GFP_KERNEL);
