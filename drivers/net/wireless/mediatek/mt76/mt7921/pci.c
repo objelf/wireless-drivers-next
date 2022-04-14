@@ -104,7 +104,6 @@ static void mt7921e_unregister_device(struct mt7921_dev *dev)
 {
 	int i;
 	struct mt76_connac_pm *pm = &dev->pm;
-
 	mt76_unregister_device(&dev->mt76);
 	mt76_for_each_q_rx(&dev->mt76, i)
 		napi_disable(&dev->mt76.napi[i]);
@@ -118,7 +117,6 @@ static void mt7921e_unregister_device(struct mt7921_dev *dev)
 	mt7921_mcu_exit(dev);
 
 	tasklet_disable(&dev->irq_tasklet);
-	mt76_free_device(&dev->mt76);
 }
 
 static u32 __mt7921_reg_addr(struct mt7921_dev *dev, u32 addr)
@@ -350,9 +348,12 @@ static void mt7921_pci_remove(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
-
+	pr_err("unregister device\n");
 	mt7921e_unregister_device(dev);
+	pr_err("free irq\n");
 	devm_free_irq(&pdev->dev, pdev->irq, dev);
+	pr_err("free device\n");
+	mt76_free_device(&dev->mt76);
 	pci_free_irq_vectors(pdev);
 }
 
