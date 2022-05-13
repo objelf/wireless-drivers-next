@@ -825,9 +825,10 @@ void mt76_set_channel(struct mt76_phy *phy)
 	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(phy), timeout);
 	mt76_update_survey(phy);
 
-	if (!chandef->chan) {
-		chandef = &phy->chandef;
-	}
+	/* TODO: can we return here? */
+	if (!chandef || !chandef->chan)
+		return;
+
 	if (phy->chandef.chan->center_freq != chandef->chan->center_freq ||
 	    phy->chandef.width != chandef->width)
 		phy->dfs_state = MT_DFS_STATE_UNKNOWN;

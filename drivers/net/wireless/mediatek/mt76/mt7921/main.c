@@ -385,6 +385,115 @@ static void mt7921_remove_interface(struct ieee80211_hw *hw,
 	mt76_packet_id_flush(&dev->mt76, &msta->wcid);
 }
 
+static void mt7921_roc_iter(void *priv, u8 *mac,
+			    struct ieee80211_vif *vif)
+{
+	struct mt7921_phy *phy = priv;
+
+	mt7921_mcu_set_roc(phy, vif, NULL, 0, 0);
+}
+
+void mt7921_roc_work(struct work_struct *work)
+{
+	struct mt7921_phy *phy;
+
+	phy = (struct mt7921_phy *)container_of(work, struct mt7921_phy,
+						roc_work);
+
+	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
+		return;
+
+	mt7921_mutex_acquire(phy->dev);
+	ieee80211_iterate_active_interfaces(phy->mt76->hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
+					    mt7921_roc_iter, phy);
+	mt7921_mutex_release(phy->dev);
+	ieee80211_remain_on_channel_expired(phy->mt76->hw);
+}
+
+void mt7921_roc_timer(struct timer_list *timer)
+{
+	struct mt7921_phy *phy = from_timer(phy, timer, roc_timer);
+
+	pr_err("** DW[%u][%s:%d] \n", current->pid, __func__, __LINE__);
+	ieee80211_queue_work(phy->mt76->hw, &phy->roc_work);
+}
+
+static int mt7921_set_roc(struct mt7921_phy *phy,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_channel *chan,
+				    int duration,
+				    enum enum_roc type)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	int err = 0;
+
+	if (!chan) {
+		if (phy->roc_grant &&
+		    phy->roc_bss_idx == mvif->mt76.idx) {
+			del_timer_sync(&phy->roc_timer);
+			cancel_work_sync(&phy->roc_work);
+			err = mt7921_mcu_set_roc(phy, vif, NULL, 0, 0);
+			clear_bit(MT76_STATE_ROC, &phy->mt76->state);
+		}
+		return err;
+	}
+
+	if (test_and_set_bit(MT76_STATE_ROC, &phy->mt76->state))
+		return -EBUSY;
+
+	err = mt7921_mcu_set_roc(phy, vif, chan, duration, type);
+	if (err < 0) {
+		clear_bit(MT76_STATE_ROC, &phy->mt76->state);
+		goto out;
+	}
+
+	if (!wait_event_timeout(phy->roc_wait, phy->roc_grant, HZ)) {
+		mt7921_mcu_set_roc(phy, vif, NULL, 0, 0);
+		clear_bit(MT76_STATE_ROC, &phy->mt76->state);
+		err = -ETIMEDOUT;
+	}
+
+out:
+
+	return err;
+}
+
+static int mt7921_remain_on_channel(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_channel *chan,
+				    int duration,
+				    enum ieee80211_roc_type type)
+{
+	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	int err;
+
+	mt7921_mutex_acquire(phy->dev);
+	err = mt7921_set_roc(phy, vif, chan, duration, REQ_ROC);
+	mt7921_mutex_release(phy->dev);
+
+	return err;
+}
+
+static int mt7921_cancel_remain_on_channel(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif)
+{
+	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	int err;
+
+	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
+		return 0;
+
+	del_timer_sync(&phy->roc_timer);
+	cancel_work_sync(&phy->roc_work);
+
+	mt7921_mutex_acquire(phy->dev);
+	err = mt7921_mcu_set_roc(phy, vif, NULL, 0, 0);
+	mt7921_mutex_release(phy->dev);
+
+	return err;
+}
+
 static int mt7921_set_channel(struct mt7921_phy *phy)
 {
 	struct mt7921_dev *dev = phy->dev;
@@ -1505,6 +1614,7 @@ mt7921_add_chanctx(struct ieee80211_hw *hw,
 			struct ieee80211_chanctx_conf *ctx)
 {
 	pr_err("** DW[%u][%s:%d] \n", current->pid, __func__, __LINE__);
+	/* sanity check can be here. Check band support? */
 	return 0;
 }
 
@@ -1529,8 +1639,8 @@ mt7921_assign_vif_chanctx(struct ieee80211_hw *hw,
 			struct ieee80211_chanctx_conf *ctx)
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
-	struct mt76_phy *mphy = phy->mt76;
 
 	pr_err("** DW[%u][%s:%d] vif type:0x%X\n", current->pid, __func__, __LINE__, vif->type);
 	pr_err("** DW[%u][%s:%d] add channel context control: %d MHz/width: %d/cfreqs:%d/%d MHz\n",
@@ -1538,12 +1648,16 @@ mt7921_assign_vif_chanctx(struct ieee80211_hw *hw,
 		  ctx->def.chan->center_freq, ctx->def.width,
 		  ctx->def.center_freq1, ctx->def.center_freq2);
 
-	mvif->ctx = ctx;
-	mphy->chandef = ctx->def;
+	mt7921_mutex_acquire(dev);
+	mvif->chanctx_conf = ctx;
+	/* TDOD: ctx is per vif, not per vif */
+	phy->mt76->chandef = ctx->def;
+	mt7921_mutex_release(dev);
+#if 0 /* TODO: remove? */
 	ieee80211_stop_queues(hw);
 	mt7921_set_channel(phy);
 	ieee80211_wake_queues(hw);
-	
+#endif
 	return 0;
 }
 
@@ -1553,6 +1667,7 @@ mt7921_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			struct ieee80211_chanctx_conf *ctx)
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	//struct mt7921_phy *phy = mt7921_hw_phy(hw);
 
 	pr_err("** DW[%u][%s:%d] vif type:0x%X\n", current->pid, __func__, __LINE__, vif->type);
@@ -1561,7 +1676,38 @@ mt7921_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		  ctx->def.chan->center_freq, ctx->def.width,
 		  ctx->def.center_freq1, ctx->def.center_freq2);
 
-	mvif->ctx = NULL;
+	mt7921_mutex_acquire(dev);
+	mt7921_set_roc(mvif->phy, vif, NULL, 0, 0);
+	mvif->chanctx_conf = NULL;
+	mt7921_mutex_release(dev);
+}
+
+static void mt7921_mgd_prepare_tx(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_prep_tx_info *info)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+	u16 duration = info->duration ? info->duration : HZ;
+
+	pr_err("** DW[%u][%s:%d] duration:%d\n", current->pid, __func__, __LINE__, info->duration);
+	mt7921_mutex_acquire(dev);
+	mt7921_set_roc(mvif->phy, vif, vif->bss_conf.chandef.chan,
+		       jiffies_to_msecs(duration), REQ_JOIN);
+	mt7921_mutex_release(dev);
+}
+
+static void mt7921_mgd_complete_tx(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_prep_tx_info *info)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+
+	pr_err("** DW[%u][%s:%d] \n", current->pid, __func__, __LINE__);
+	mt7921_mutex_acquire(dev);
+	mt7921_set_roc(mvif->phy, vif, NULL, 0, 0);
+	mt7921_mutex_release(dev);
 }
 
 const struct ieee80211_ops mt7921_ops = {
@@ -1612,11 +1758,15 @@ const struct ieee80211_ops mt7921_ops = {
 #endif /* CONFIG_PM */
 	.flush = mt7921_flush,
 	.set_sar_specs = mt7921_set_sar_specs,
+	.remain_on_channel = mt7921_remain_on_channel,
+	.cancel_remain_on_channel = mt7921_cancel_remain_on_channel,
 	.add_chanctx = mt7921_add_chanctx,
 	.remove_chanctx = mt7921_remove_chanctx,
 	.change_chanctx = mt7921_change_chanctx,
 	.assign_vif_chanctx = mt7921_assign_vif_chanctx,
 	.unassign_vif_chanctx = mt7921_unassign_vif_chanctx,
+	.mgd_prepare_tx = mt7921_mgd_prepare_tx,
+	.mgd_complete_tx = mt7921_mgd_complete_tx,
 };
 EXPORT_SYMBOL_GPL(mt7921_ops);
 

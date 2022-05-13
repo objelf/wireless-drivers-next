@@ -268,6 +268,40 @@ void mt7921_mcu_set_suspend_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 #endif /* CONFIG_PM */
 
 static void
+mt7921_mcu_uni_roc_event(struct mt7921_dev *dev, struct sk_buff *skb)
+{
+	struct mt7921_mcu_rxd *rxd;
+	struct mt7921_roc_grant_tlv *grant;
+	int duration;
+
+	rxd = (struct mt7921_mcu_rxd *)skb->data;
+	grant = (struct mt7921_roc_grant_tlv *)(rxd->tlv + 4);
+	if (grant->tag != (u8)UNI_EVENT_ROC_GRANT)
+		return;
+
+	dev_err(dev->mt76.dev, "[cnm grant] token = %d, interval = %d, ch = %d type:%d len:%d/%d\n",
+		grant->tokenid,
+		grant->max_interval,
+		grant->primarychannel,
+		grant->reqtype,
+		le16_to_cpu(grant->len),
+		le16_to_cpu(rxd->len));
+	if (grant->reqtype == REQ_ROC )
+		ieee80211_ready_on_channel(dev->mt76.phy.hw);
+
+	/* TODO: what can we do? */
+	if (dev->phy.roc_token_idx != grant->tokenid)
+		pr_err("** DW[%u][%s:%d] Wrong ID %d/%d\n", current->pid, __func__, __LINE__,
+			dev->phy.roc_token_idx, grant->tokenid);
+	dev->phy.roc_bss_idx = grant->bss_idx;
+	dev->phy.roc_grant = true;
+	wake_up(&dev->phy.roc_wait);
+	duration = le32_to_cpu(grant->max_interval);
+	mod_timer(&dev->phy.roc_timer,
+		  round_jiffies_up(jiffies + msecs_to_jiffies(duration)));
+}
+
+static void
 mt7921_mcu_scan_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -285,10 +319,13 @@ static void
 mt7921_mcu_connection_loss_iter(void *priv, u8 *mac,
 				struct ieee80211_vif *vif)
 {
-	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
 	struct mt76_connac_beacon_loss_event *event = priv;
 
-	if (mvif->idx != event->bss_idx)
+	if (mvif->phy->roc_grant)
+		return;
+
+	if (mvif->mt76.idx != event->bss_idx)
 		return;
 
 	if (!(vif->driver_flags & IEEE80211_VIF_BEACON_FILTER) ||
@@ -414,6 +451,21 @@ mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	dev_kfree_skb(skb);
 }
 
+static void
+mt7921_mcu_uni_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
+{
+	struct mt7921_mcu_rxd *rxd = (struct mt7921_mcu_rxd *)skb->data;
+
+	switch (rxd->eid) {
+	case MCU_UNI_EVENT_ROC:
+		mt7921_mcu_uni_roc_event(dev, skb);
+		break;
+	default:
+		break;
+	}
+	dev_kfree_skb(skb);
+}
+
 void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt7921_mcu_rxd *rxd;
@@ -422,6 +474,11 @@ void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		return;
 
 	rxd = (struct mt7921_mcu_rxd *)skb->data;
+
+	if (rxd->option & MCU_UNI_CMD_UNSOLICITED_EVENT) {
+		mt7921_mcu_uni_rx_unsolicited_event(dev, skb);
+		return;
+	}
 
 	if (rxd->eid == 0x6) {
 		mt76_mcu_rx_event(&dev->mt76, skb);
@@ -871,6 +928,116 @@ int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 				 &req_mu, sizeof(req_mu), false);
 }
 
+int mt7921_mcu_roc_acquire(struct mt7921_phy *phy, struct mt7921_vif *vif,
+				struct ieee80211_channel *chan, int duration, enum enum_roc type)
+{
+	int center_ch = ieee80211_frequency_to_channel(chan->center_freq);
+	struct mt7921_dev *dev = phy->dev;
+	struct {
+		struct {
+			u8 rsv[4];
+		} __packed hdr;
+		struct roc_acquire_tlv {
+			__le16 tag;
+			__le16 len;
+			u8 bss_idx;
+			u8 tokenid;
+			u8 primarychannel;
+			u8 sco;
+			u8 band;
+			u8 channelwidth;
+			u8 centerfreqseg1;
+			u8 centerfreqseg2;
+			u8 channelwidthfromap;
+			u8 centerfreqseg1fromap;
+			u8 centerfreqseg2fromap;
+			u8 reqtype;
+			__le32 maxinterval;
+			u8 dbdcband;
+			u8 rsv[3];
+		} __packed roc;
+	} __packed req = {
+		.roc = {
+			.tag = cpu_to_le16(UNI_ROC_ACQUIRE),
+			.len = cpu_to_le16(sizeof(struct roc_acquire_tlv)),
+			.tokenid = ++phy->roc_token_idx,
+			.reqtype = type,
+			.maxinterval = cpu_to_le32(duration),
+			.bss_idx = vif->mt76.idx,
+			.primarychannel = chan->hw_value,
+			.centerfreqseg1 = center_ch,
+			.centerfreqseg1fromap = center_ch,
+			.dbdcband = 0xff, /* auto */
+		},
+	};
+
+	if (chan->hw_value < center_ch)
+		req.roc.sco = 1; /* SCA */
+	else if (chan->hw_value > center_ch)
+		req.roc.sco = 3; /* SCB */
+
+	switch (chan->band) {
+	case NL80211_BAND_6GHZ:
+		req.roc.band = 3;
+		break;
+	case NL80211_BAND_5GHZ:
+		req.roc.band = 2;
+		break;
+	default:
+		req.roc.band = 1;
+		break;
+	}
+	dev_err(dev->mt76.dev, "[cnm req] bss=%d,token=%d,type=%d,interval=%d,ch[%d %d %d %d %d %d] dbdc=%d.\n",
+		req.roc.bss_idx,
+		req.roc.tokenid,
+		req.roc.reqtype,
+		req.roc.maxinterval,
+		req.roc.band,
+		req.roc.primarychannel,
+		req.roc.channelwidth,
+		req.roc.sco,
+		req.roc.centerfreqseg1,
+		req.roc.centerfreqseg2,
+		req.roc.dbdcband);
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(ROC),
+				 &req, sizeof(req), false);
+}
+
+int mt7921_mcu_roc_abort(struct mt7921_phy *phy)
+{
+	struct mt7921_dev *dev = phy->dev;
+	struct {
+		struct {
+			u8 rsv[4];
+		} __packed hdr;
+		struct roc_abort_tlv {
+			__le16 tag;
+			__le16 len;
+			u8 bss_idx;
+			u8 tokenid;
+			u8 dbdcband;
+			u8 rsv[5];
+		} __packed abort;
+	} __packed req = {
+		.abort = {
+			.tag = cpu_to_le16(UNI_ROC_ABORT),
+			.len = cpu_to_le16(sizeof(struct roc_abort_tlv)),
+			.tokenid = phy->roc_token_idx,
+			.bss_idx = phy->roc_bss_idx,
+			.dbdcband = 0xff, /* auto*/
+		},
+	};
+
+	dev_err(dev->mt76.dev, "[cnm abort] bss=%d,token=%d,dbdc=%d.\n",
+		req.abort.bss_idx,
+		req.abort.tokenid,
+		req.abort.dbdcband);
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(ROC),
+				 &req, sizeof(req), false);
+}
+
 int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd)
 {
 	struct mt7921_dev *dev = phy->dev;
@@ -1152,7 +1319,8 @@ int mt7921_mcu_set_beacon_filter(struct mt7921_dev *dev,
 	if (err)
 		return err;
 
-	vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+	/* TODO: remove? */
+	//vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
 	__clear_bit(IEEE80211_HW_CONNECTION_MONITOR, hw->flags);
 	mt76_clear(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
 
@@ -1286,4 +1454,20 @@ mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 out:
 	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(BSS_INFO_UPDATE),
 				 &req, sizeof(req), true);
+}
+
+int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct ieee80211_vif *vif,
+		       struct ieee80211_channel *chan, int duration, enum enum_roc type)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = (struct mt7921_dev *)phy->dev;
+
+	phy->roc_grant = false;
+	if (!dev->pm.enable)
+		mt7921_mcu_set_beacon_filter(dev, vif, !!chan);
+
+	if (!chan)
+		return mt7921_mcu_roc_abort(phy);
+
+	return mt7921_mcu_roc_acquire(phy, mvif, chan, duration, type);
 }
