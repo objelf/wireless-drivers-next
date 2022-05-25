@@ -1500,6 +1500,70 @@ mt7921_channel_switch_beacon(struct ieee80211_hw *hw,
 	mt7921_mutex_release(dev);
 }
 
+static int
+mt7921_add_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_chanctx_conf *ctx)
+{
+	pr_err("** DW[%u][%s:%d] \n", current->pid, __func__, __LINE__);
+	return 0;
+}
+
+static void
+mt7921_remove_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_chanctx_conf *ctx)
+{
+	pr_err("** DW[%u][%s:%d] \n", current->pid, __func__, __LINE__);
+}
+
+static void
+mt7921_change_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_chanctx_conf *ctx,
+			u32 changed)
+{
+	pr_err("** DW[%u][%s:%d] changed:0x%X\n", current->pid, __func__, __LINE__, changed);
+}
+
+static int
+mt7921_assign_vif_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
+			struct ieee80211_chanctx_conf *ctx)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt76_phy *mphy = phy->mt76;
+
+	pr_err("** DW[%u][%s:%d] vif type:0x%X\n", current->pid, __func__, __LINE__, vif->type);
+	pr_err("** DW[%u][%s:%d] add channel context control: %d MHz/width: %d/cfreqs:%d/%d MHz\n",
+		current->pid, __func__, __LINE__,
+		  ctx->def.chan->center_freq, ctx->def.width,
+		  ctx->def.center_freq1, ctx->def.center_freq2);
+
+	mvif->ctx = ctx;
+	mphy->chandef = ctx->def;
+	ieee80211_stop_queues(hw);
+	mt7921_set_channel(phy);
+	ieee80211_wake_queues(hw);
+	
+	return 0;
+}
+
+static void
+mt7921_unassign_vif_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
+			struct ieee80211_chanctx_conf *ctx)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	//struct mt7921_phy *phy = mt7921_hw_phy(hw);
+
+	pr_err("** DW[%u][%s:%d] vif type:0x%X\n", current->pid, __func__, __LINE__, vif->type);
+	pr_err("** DW[%u][%s:%d] close channel context control: %d MHz/width: %d/cfreqs:%d/%d MHz\n",
+		current->pid, __func__, __LINE__,
+		  ctx->def.chan->center_freq, ctx->def.width,
+		  ctx->def.center_freq1, ctx->def.center_freq2);
+
+	mvif->ctx = NULL;
+}
+
 const struct ieee80211_ops mt7921_ops = {
 	.tx = mt7921_tx,
 	.start = mt7921_start,
@@ -1548,6 +1612,11 @@ const struct ieee80211_ops mt7921_ops = {
 #endif /* CONFIG_PM */
 	.flush = mt7921_flush,
 	.set_sar_specs = mt7921_set_sar_specs,
+	.add_chanctx = mt7921_add_chanctx,
+	.remove_chanctx = mt7921_remove_chanctx,
+	.change_chanctx = mt7921_change_chanctx,
+	.assign_vif_chanctx = mt7921_assign_vif_chanctx,
+	.unassign_vif_chanctx = mt7921_unassign_vif_chanctx,
 };
 EXPORT_SYMBOL_GPL(mt7921_ops);
 
