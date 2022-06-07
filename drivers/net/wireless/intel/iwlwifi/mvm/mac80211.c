@@ -2035,16 +2035,48 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 		iwl_mvm_set_pkt_ext_from_he_ppe(mvm, sta,
 						&sta_ctxt_cmd.pkt_ext);
 		flags |= STA_CTXT_HE_PACKET_EXT;
-	/* PPE Thresholds doesn't exist - set the API PPE values
-	* according to Common Nominal Packet Padding fiels. */
-	} else {
-		u8 nominal_padding =
-			u8_get_bits(sta->he_cap.he_cap_elem.phy_cap_info[9],
-				    IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK);
-		if (nominal_padding != IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_RESERVED)
-			iwl_mvm_set_pkt_ext_from_nominal_padding(&sta_ctxt_cmd.pkt_ext,
-								 nominal_padding,
-								 &flags);
+	} else if ((sta->he_cap.he_cap_elem.phy_cap_info[9] &
+		    IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK) !=
+		  IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_RESERVED) {
+		int low_th = -1;
+		int high_th = -1;
+
+		/* Take the PPE thresholds from the nominal padding info */
+		switch (sta->he_cap.he_cap_elem.phy_cap_info[9] &
+			IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK) {
+		case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_0US:
+			low_th = IWL_HE_PKT_EXT_NONE;
+			high_th = IWL_HE_PKT_EXT_NONE;
+			break;
+		case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_8US:
+			low_th = IWL_HE_PKT_EXT_BPSK;
+			high_th = IWL_HE_PKT_EXT_NONE;
+			break;
+		case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US:
+			low_th = IWL_HE_PKT_EXT_NONE;
+			high_th = IWL_HE_PKT_EXT_BPSK;
+			break;
+		}
+
+		/* Set the PPE thresholds accordingly */
+		if (low_th >= 0 && high_th >= 0) {
+			struct iwl_he_pkt_ext *pkt_ext =
+				(struct iwl_he_pkt_ext *)&sta_ctxt_cmd.pkt_ext;
+
+			for (i = 0; i < MAX_HE_SUPP_NSS; i++) {
+				u8 bw;
+
+				for (bw = 0; bw < MAX_HE_CHANNEL_BW_INDX;
+				     bw++) {
+					pkt_ext->pkt_ext_qam_th[i][bw][0] =
+						low_th;
+					pkt_ext->pkt_ext_qam_th[i][bw][1] =
+						high_th;
+				}
+			}
+
+			flags |= STA_CTXT_HE_PACKET_EXT;
+		}
 	}
 
 	if (sta->he_cap.he_cap_elem.mac_cap_info[2] &
