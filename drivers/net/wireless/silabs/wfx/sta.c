@@ -459,12 +459,12 @@ static void wfx_join_finalize(struct wfx_vif *wvif, struct ieee80211_bss_conf *i
 
 	rcu_read_lock(); /* protect sta */
 	if (info->bssid && !info->ibss_joined)
-		sta = ieee80211_find_sta(vif, info->bssid);
-	if (sta && sta->deflink.ht_cap.ht_supported)
-		ampdu_density = sta->deflink.ht_cap.ampdu_density;
-	if (sta && sta->deflink.ht_cap.ht_supported &&
+		sta = ieee80211_find_sta(wvif->vif, info->bssid);
+	if (sta && sta->ht_cap.ht_supported)
+		ampdu_density = sta->ht_cap.ampdu_density;
+	if (sta && sta->ht_cap.ht_supported &&
 	    !(info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT))
-		greenfield = !!(sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD);
+		greenfield = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD);
 	rcu_read_unlock();
 
 	wvif->join_in_progress = false;
