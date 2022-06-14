@@ -901,7 +901,6 @@ int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd)
 		.rx_streams = phy->mt76->antenna_mask,
 		.band_idx = phy != &dev->phy,
 	};
-	pr_err("** DW[%u][%s:%d] chandef->chan->hw_value = %d\n", current->pid, __func__, __LINE__, chandef->chan->hw_value);
 
 	if (chandef->chan->band == NL80211_BAND_6GHZ)
 		req.channel_band = 2;
