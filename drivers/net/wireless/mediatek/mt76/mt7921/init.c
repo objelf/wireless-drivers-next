@@ -71,7 +71,6 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_AP);
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
-	wiphy->max_remain_on_channel_duration = 5000;
 	wiphy->max_scan_ie_len = MT76_CONNAC_SCAN_IE_LEN;
 	wiphy->max_scan_ssids = 4;
 	wiphy->max_sched_scan_plan_interval =
@@ -81,7 +80,6 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 	wiphy->max_match_sets = MT76_CONNAC_MAX_SCAN_MATCH;
 	wiphy->max_sched_scan_reqs = 1;
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
-	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	wiphy->reg_notifier = mt7921_regd_notifier;
 
 	wiphy->features |= NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
@@ -277,15 +275,6 @@ int mt7921_register_device(struct mt7921_dev *dev)
 
 	INIT_WORK(&dev->reset_work, mt7921_mac_reset_work);
 	INIT_WORK(&dev->init_work, mt7921_init_work);
-
-	INIT_WORK(&dev->phy.roc_work, mt7921_roc_work);
-	timer_setup(&dev->phy.roc_timer, mt7921_roc_timer, 0);
-	init_waitqueue_head(&dev->phy.roc_wait);
-	dev->use_chanctx = mt7921_ops.add_chanctx &&
-			   mt7921_ops.remove_chanctx &&
-			   mt7921_ops.change_chanctx &&
-			   mt7921_ops.assign_vif_chanctx &&
-			   mt7921_ops.unassign_vif_chanctx;
 
 	dev->pm.idle_timeout = MT7921_PM_TIMEOUT;
 	dev->pm.stats.last_wake_event = jiffies;
