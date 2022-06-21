@@ -23,7 +23,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.limits = if_limits,
 		.n_limits = ARRAY_SIZE(if_limits),
 		.max_interfaces = MT7921_MAX_INTERFACES,
-		.num_different_channels = 1,
+		.num_different_channels = 4,
 		.beacon_int_infra_match = true,
 	}
 };
