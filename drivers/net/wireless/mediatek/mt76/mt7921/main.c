@@ -1584,6 +1584,93 @@ mt7921_channel_switch_beacon(struct ieee80211_hw *hw,
 	mt7921_mutex_release(dev);
 }
 
+static int mt7921_set_roc(struct mt7921_phy *phy,
+		    	  struct ieee80211_vif *vif,
+		    	  struct ieee80211_channel *chan,
+		    	  int duration, enum mt7921_roc_type type)
+{
+	/* TODO */
+
+	return 0;
+}
+
+static int
+mt7921_add_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_chanctx_conf *ctx)
+{
+	return 0;
+}
+
+static void
+mt7921_remove_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_chanctx_conf *ctx)
+{
+}
+
+static void
+mt7921_change_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_chanctx_conf *ctx,
+			u32 changed)
+{
+}
+
+static int
+mt7921_assign_vif_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
+			struct ieee80211_chanctx_conf *ctx)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+
+	mt7921_mutex_acquire(dev);
+	mvif->chanctx_conf = ctx;
+	/* TDOD: ctx is per vif, not per vif */
+	phy->mt76->chandef = ctx->def;
+	mt7921_mutex_release(dev);
+	return 0;
+}
+
+static void
+mt7921_unassign_vif_chanctx(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
+			struct ieee80211_chanctx_conf *ctx)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+
+	mt7921_mutex_acquire(dev);
+	mt7921_set_roc(mvif->phy, vif, NULL, 0, 0);
+	mvif->chanctx_conf = NULL;
+	mt7921_mutex_release(dev);
+}
+
+static void mt7921_mgd_prepare_tx(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_prep_tx_info *info)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+	u16 duration = info->duration ? info->duration : HZ;
+
+	mt7921_mutex_acquire(dev);
+	mt7921_set_roc(mvif->phy, vif, vif->bss_conf.chandef.chan,
+		       jiffies_to_msecs(duration), REQ_JOIN);
+	mt7921_mutex_release(dev);
+}
+
+static void mt7921_mgd_complete_tx(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_prep_tx_info *info)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+
+	mt7921_mutex_acquire(dev);
+	mt7921_set_roc(mvif->phy, vif, NULL, 0, 0);
+	mt7921_mutex_release(dev);
+}
+
 const struct ieee80211_ops mt7921_ops = {
 	.tx = mt7921_tx,
 	.start = mt7921_start,
@@ -1634,6 +1721,13 @@ const struct ieee80211_ops mt7921_ops = {
 	.set_sar_specs = mt7921_set_sar_specs,
 	.remain_on_channel = mt7921_remain_on_channel,
 	.cancel_remain_on_channel = mt7921_cancel_remain_on_channel,
+	.add_chanctx = mt7921_add_chanctx,
+	.remove_chanctx = mt7921_remove_chanctx,
+	.change_chanctx = mt7921_change_chanctx,
+	.assign_vif_chanctx = mt7921_assign_vif_chanctx,
+	.unassign_vif_chanctx = mt7921_unassign_vif_chanctx,
+	.mgd_prepare_tx = mt7921_mgd_prepare_tx,
+	.mgd_complete_tx = mt7921_mgd_complete_tx,
 };
 EXPORT_SYMBOL_GPL(mt7921_ops);
 
