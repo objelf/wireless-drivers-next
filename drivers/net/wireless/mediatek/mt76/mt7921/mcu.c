@@ -268,6 +268,31 @@ void mt7921_mcu_set_suspend_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 #endif /* CONFIG_PM */
 
 static void
+mt7921_mcu_uni_roc_event(struct mt7921_dev *dev, struct sk_buff *skb)
+{
+	struct mt7921_mcu_rxd *rxd;
+	struct mt7921_roc_grant_tlv *grant;
+	int duration;
+
+	rxd = (struct mt7921_mcu_rxd *)skb->data;
+	grant = (struct mt7921_roc_grant_tlv *)(rxd->tlv + 4);
+
+	if (grant->tag != (u8)UNI_EVENT_ROC_GRANT)
+		return;
+
+	if (grant->reqtype == REQ_ROC )
+		ieee80211_ready_on_channel(dev->mt76.phy.hw);
+
+	dev->phy.roc_bss_idx = grant->bss_idx;
+	dev->phy.roc_grant = true;
+	wake_up(&dev->phy.roc_wait);
+
+	duration = le32_to_cpu(grant->max_interval);
+	mod_timer(&dev->phy.roc_timer,
+		  round_jiffies_up(jiffies + msecs_to_jiffies(duration)));
+}
+
+static void
 mt7921_mcu_scan_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -422,6 +447,7 @@ mt7921_mcu_uni_rx_unsolicited_event(struct mt7921_dev *dev,
 
 	switch (rxd->eid) {
 	case MCU_UNI_EVENT_ROC:
+		mt7921_mcu_uni_roc_event(dev, skb);
 		break;
 	default:
 		break;
@@ -983,6 +1009,23 @@ int mt7921_mcu_roc_abort(struct mt7921_phy *phy, int bss_idx, int token_idx)
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(ROC), &req,
 				 sizeof(req), false);
+}
+
+int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct ieee80211_vif *vif,
+		       struct ieee80211_channel *chan, int duration,
+		       enum mt7921_roc_type type)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_dev *dev = (struct mt7921_dev *)phy->dev;
+
+	phy->roc_grant = false;
+
+	if (!chan)
+		return mt7921_mcu_roc_abort(phy, phy->roc_bss_idx,
+					    phy->roc_token_idx);
+
+	return mt7921_mcu_roc_acquire(phy, mvif, chan, duration,
+				      ++phy->roc_token_idx, type);
 }
 
 int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd)

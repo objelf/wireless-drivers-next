@@ -60,6 +60,11 @@ enum {
 	UNI_CNM_TAG_NUM
 };
 
+enum {
+	UNI_EVENT_ROC_GRANT = 0,
+	UNI_EVENT_ROC_TAG_NUM
+};
+
 enum mt7921_roc_type {
 	REQ_JOIN,
 	REQ_ROC,
@@ -67,6 +72,24 @@ enum mt7921_roc_type {
 	REQ_GO_START_BSS,
 	REQ_NUM
 };
+
+struct mt7921_roc_grant_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 bss_idx;
+	u8 tokenid;
+	u8 status;
+	u8 primarychannel;
+	u8 rfsco;
+	u8 rfband;
+	u8 channelwidth;
+	u8 centerfreqseg1;
+	u8 centerfreqseg2;
+	u8 reqtype;
+	u8 dbdcband;
+	u8 rsv[1];
+	__le32 max_interval;
+} __packed;
 
 enum mt7921_sdio_pkt_type {
 	MT7921_SDIO_TXD,
@@ -188,6 +211,13 @@ struct mt7921_phy {
 
 	struct sk_buff_head scan_event_list;
 	struct delayed_work scan_work;
+
+	struct work_struct roc_work;
+	struct timer_list roc_timer;
+	wait_queue_head_t roc_wait;
+	bool roc_grant;
+	u8 roc_token_idx;
+	u8 roc_bss_idx;
 };
 
 #define mt7921_init_reset(dev)		((dev)->hif_ops->init_reset(dev))
@@ -418,6 +448,9 @@ void mt7921_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
 void mt7921_stats_work(struct work_struct *work);
 void mt7921_set_stream_he_caps(struct mt7921_phy *phy);
 void mt7921_update_channel(struct mt76_phy *mphy);
+int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct ieee80211_vif *vif,
+		       struct ieee80211_channel *chan, int duration,
+		       enum mt7921_roc_type type);
 int mt7921_init_debugfs(struct mt7921_dev *dev);
 
 int mt7921_mcu_set_beacon_filter(struct mt7921_dev *dev,
@@ -430,6 +463,8 @@ int mt7921_mcu_uni_rx_ba(struct mt7921_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable);
 void mt7921_scan_work(struct work_struct *work);
+void mt7921_roc_work(struct work_struct *work);
+void mt7921_roc_timer(struct timer_list *timer);
 int mt7921_mcu_uni_bss_ps(struct mt7921_dev *dev, struct ieee80211_vif *vif);
 int mt7921_mcu_drv_pmctrl(struct mt7921_dev *dev);
 int mt7921_mcu_fw_pmctrl(struct mt7921_dev *dev);
@@ -499,4 +534,8 @@ int mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 				      struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      bool enable);
+int mt7921_mcu_roc_acquire(struct mt7921_phy *phy, struct mt7921_vif *vif,
+			   struct ieee80211_channel *chan, int duration,
+			   int token_idx, enum mt7921_roc_type type);
+int mt7921_mcu_roc_abort(struct mt7921_phy *phy, int bss_idx, int token_idx);
 #endif
