@@ -116,11 +116,14 @@ struct mt7921_mcu_rxd {
 
 	u8 eid;
 	u8 seq;
-	__le16 __rsv;
+	u8 option;
+	u8 __rsv;
 
 	u8 ext_eid;
 	u8 __rsv1[2];
 	u8 s2d_index;
+
+	u8 tlv[0];
 };
 
 struct mt7921_mcu_eeprom_info {
