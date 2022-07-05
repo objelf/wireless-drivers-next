@@ -18,6 +18,14 @@ static const struct ieee80211_iface_limit if_limits[] = {
 	}
 };
 
+static const struct ieee80211_iface_limit if_limits2[] = {
+	{
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_STATION) |
+			 BIT(NL80211_IFTYPE_AP)
+	},
+};
+
 static const struct ieee80211_iface_combination if_comb[] = {
 	{
 		.limits = if_limits,
@@ -25,6 +33,12 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.max_interfaces = MT7921_MAX_INTERFACES,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
+	},
+	{
+		.limits = if_limits2,
+		.n_limits = ARRAY_SIZE(if_limits2),
+		.max_interfaces = 2,
+		.num_different_channels = 2,
 	}
 };
 
