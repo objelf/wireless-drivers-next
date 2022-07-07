@@ -274,15 +274,21 @@ mt7921_mcu_connection_loss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 static void
 mt7921_mcu_bss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
-	struct mt76_phy *mphy = &dev->mt76.phy;
+//	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt76_connac_mcu_bss_event *event;
 
 	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
 	event = (struct mt76_connac_mcu_bss_event *)skb->data;
+
+	dev_err(dev->mt76.dev, "%s %d is_absent %d bss %d\n", __func__, __LINE__,
+	 	event->is_absent, event->bss_idx);
+
+/*
 	if (event->is_absent)
 		ieee80211_stop_queues(mphy->hw);
 	else
 		ieee80211_wake_queues(mphy->hw);
+*/
 }
 
 static void
@@ -461,7 +467,7 @@ static char *mt7921_patch_name(struct mt7921_dev *dev)
 	return ret;
 }
 
-static char *mt7921_ram_name(struct mt7921_dev *dev)
+char *mt7921_ram_name(struct mt7921_dev *dev)
 {
 	char *ret;
 

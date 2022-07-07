@@ -2,6 +2,7 @@
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/etherdevice.h>
+#include <linux/firmware.h>
 #include "mt7921.h"
 #include "mac.h"
 #include "mcu.h"
@@ -18,7 +19,7 @@ static const struct ieee80211_iface_limit if_limits[] = {
 	}
 };
 
-static const struct ieee80211_iface_limit if_limits2[] = {
+static const struct ieee80211_iface_limit if_limits_chanctx[] = {
 	{
 		.max = 2,
 		.types = BIT(NL80211_IFTYPE_STATION) |
@@ -34,9 +35,12 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 	},
+};
+
+static const struct ieee80211_iface_combination if_comb_chanctx[] = {
 	{
-		.limits = if_limits2,
-		.n_limits = ARRAY_SIZE(if_limits2),
+		.limits = if_limits_chanctx,
+		.n_limits = ARRAY_SIZE(if_limits_chanctx),
 		.max_interfaces = 2,
 		.num_different_channels = 2,
 	}
@@ -58,12 +62,61 @@ mt7921_regd_notifier(struct wiphy *wiphy,
 	mt7921_mutex_release(dev);
 }
 
+int mt7921_check_offload_capability(struct device *dev, struct ieee80211_ops *ops)
+{
+	const struct mt76_connac2_fw_trailer *hdr;
+	int ret, year, mon, day, hour, min, sec;
+	const struct firmware *fw;
+	bool fw_can_roc;
+
+	ret = request_firmware(&fw, MT7921_FIRMWARE_WM, dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
+		dev_err(dev, "Invalid firmware\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdr = (const struct mt76_connac2_fw_trailer *)(fw->data + fw->size -
+					sizeof(*hdr));
+
+	dev_err(dev, "WM Firmware Version: %.10s, Build Time: %.15s\n",
+		 hdr->fw_ver, hdr->build_date);
+
+	sscanf(hdr->build_date, "%4d%2d%2d%2d%2d%2d", &year, &mon, &day, &hour,
+	       &min, &sec);
+
+	if (mktime64(year, mon, day, hour, min, sec) >=
+	    mktime64(2022, 6, 11, 20, 26, 24))
+		fw_can_roc = true;
+
+	if (!fw_can_roc) {
+		ops->remain_on_channel = NULL;
+		ops->cancel_remain_on_channel = NULL;
+		ops->add_chanctx = NULL;
+		ops->remove_chanctx = NULL;
+		ops->change_chanctx = NULL;
+		ops->assign_vif_chanctx = NULL;
+		ops->unassign_vif_chanctx = NULL;
+		ops->mgd_prepare_tx = NULL;
+		ops->mgd_complete_tx = NULL;
+	}
+out:
+	release_firmware(fw);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt7921_check_offload_capability);
+
 static int
 mt7921_init_wiphy(struct ieee80211_hw *hw)
 {
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = phy->dev;
 	struct wiphy *wiphy = hw->wiphy;
+	bool use_chanctx = dev->ops->assign_vif_chanctx != NULL;
 
 	hw->queues = 4;
 	hw->max_rx_aggregation_subframes = 64;
@@ -78,12 +131,18 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 	hw->sta_data_size = sizeof(struct mt7921_sta);
 	hw->vif_data_size = sizeof(struct mt7921_vif);
 
-	wiphy->iface_combinations = if_comb;
 	wiphy->flags &= ~(WIPHY_FLAG_IBSS_RSN | WIPHY_FLAG_4ADDR_AP |
 			  WIPHY_FLAG_4ADDR_STATION);
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_AP);
-	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+	if (use_chanctx) {
+		wiphy->iface_combinations = if_comb_chanctx;
+		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_chanctx);
+	} else {
+		wiphy->iface_combinations = if_comb;
+		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+	}
+
 	wiphy->max_remain_on_channel_duration = 5000;
 	wiphy->max_scan_ie_len = MT76_CONNAC_SCAN_IE_LEN;
 	wiphy->max_scan_ssids = 4;
@@ -94,7 +153,6 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 	wiphy->max_match_sets = MT76_CONNAC_MAX_SCAN_MATCH;
 	wiphy->max_sched_scan_reqs = 1;
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
-	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	wiphy->reg_notifier = mt7921_regd_notifier;
 
 	wiphy->features |= NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |

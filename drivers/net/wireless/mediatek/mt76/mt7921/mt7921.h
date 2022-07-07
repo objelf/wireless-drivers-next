@@ -265,6 +265,7 @@ struct mt7921_dev {
 	struct mt76_connac_pm pm;
 	struct mt76_connac_coredump coredump;
 	const struct mt7921_hif_ops *hif_ops;
+	struct ieee80211_ops *ops;
 
 	struct work_struct ipv6_ns_work;
 	/* IPv6 addresses for WoWLAN */
@@ -551,4 +552,6 @@ int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
 		       enum mt7921_roc type, u8 token_id);
 int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
 			 u8 token_id);
+char *mt7921_ram_name(struct mt7921_dev *dev);
+int mt7921_check_offload_capability(struct device *dev, struct ieee80211_ops *ops);
 #endif

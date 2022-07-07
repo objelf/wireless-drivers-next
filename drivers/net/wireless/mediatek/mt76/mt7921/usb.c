@@ -208,12 +208,15 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 
 	ops->stop = mt7921u_stop;
 
+	mt7921_check_offload_capability(&usb_intf->dev, ops);
+
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
 		return -ENOMEM;
 
 	dev = container_of(mdev, struct mt7921_dev, mt76);
 	dev->hif_ops = &hif_ops;
+	dev->ops = ops;
 
 	udev = usb_get_dev(udev);
 	usb_reset_device(udev);
