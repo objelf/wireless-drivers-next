@@ -157,10 +157,24 @@ bool mt7663_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 
-	mt7615_mutex_acquire(dev);
-	mt7615_mac_sta_poll(dev);
-	mt7615_mutex_release(dev);
+	if (!mutex_trylock(&mdev->mutex)) {
+		/* Because wake_work and sdio->stat_work share the same
+		 * workqueue mt76->wq, if sdio->stat_work cannot acquire the
+		 * mutex lock, we should exit the work immediately and schedule
+		 * another one to avoid blocking the wake_work.
+		 */
+		queue_work(dev->mt76.wq, &dev->mt76.sdio.stat_work);
+		goto out;
+	}
 
+	mt7615_mcu_set_drv_ctrl(dev);
+
+	mt7615_mac_sta_poll(dev);
+
+	mt76_connac_power_save_sched(&mdev->phy, &dev->pm);
+	mutex_unlock(&mdev->mutex);
+
+out:
 	return false;
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_status_data);
