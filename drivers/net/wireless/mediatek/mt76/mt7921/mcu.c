@@ -743,6 +743,7 @@ int mt7921_mcu_drv_pmctrl(struct mt7921_dev *dev)
 		goto out;
 
 	err = __mt7921_mcu_drv_pmctrl(dev);
+	dev_err(dev->mt76.dev, "driver own\n");
 out:
 	mutex_unlock(&pm->mutex);
 
@@ -765,6 +766,7 @@ int mt7921_mcu_fw_pmctrl(struct mt7921_dev *dev)
 		goto out;
 
 	err = __mt7921_mcu_fw_pmctrl(dev);
+	dev_err(dev->mt76.dev, "firmware own\n");
 out:
 	mutex_unlock(&pm->mutex);
 

@@ -1080,10 +1080,11 @@ bool mt7921_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update)
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 
+dev_err(dev->mt76.dev, "%s %d\n", __func__, __LINE__);
 	mt7921_mutex_acquire(dev);
 	mt7921_mac_sta_poll(dev);
 	mt7921_mutex_release(dev);
-
+dev_err(dev->mt76.dev, "%s %d\n", __func__, __LINE__);
 	return false;
 }
 EXPORT_SYMBOL_GPL(mt7921_usb_sdio_tx_status_data);

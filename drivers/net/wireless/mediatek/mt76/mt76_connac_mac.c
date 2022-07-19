@@ -12,6 +12,7 @@
 int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm)
 {
 	struct mt76_dev *dev = phy->dev;
+	int remaining = 0;
 
 	if (mt76_is_usb(dev))
 		return 0;
@@ -24,9 +25,11 @@ int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm)
 		return 0;
 
 	queue_work(dev->wq, &pm->wake_work);
-	if (!wait_event_timeout(pm->wait,
+	remaining = wait_event_timeout(pm->wait,
 				!test_bit(MT76_STATE_PM, &phy->state),
-				3 * HZ)) {
+				3 * HZ);
+dev_err(dev->dev, "%s %d remaining %d\n", __func__, __LINE__, remaining);
+	if (!remaining){
 		ieee80211_wake_queues(phy->hw);
 		return -ETIMEDOUT;
 	}
