@@ -392,8 +392,11 @@ mt76s_process_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 			break;
 
 		e = mt76s_get_next_rx_entry(q);
-		if (!e || !e->skb)
+		if (!e)
 			break;
+
+		if (!e->skb)
+			continue;
 
 		dev->drv->rx_skb(dev, MT_RXQ_MAIN, e->skb);
 		e->skb = NULL;
