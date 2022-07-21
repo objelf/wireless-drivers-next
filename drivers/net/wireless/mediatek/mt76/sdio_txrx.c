@@ -83,7 +83,7 @@ mt76s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 {
 	struct mt76_queue *q = &dev->q_rx[qid];
 	struct mt76_sdio *sdio = &dev->sdio;
-	int len = 0, err, i = 0;
+	int len = 0, err, i;
 	struct page *page;
 	u8 *buf, *end;
 
@@ -112,6 +112,7 @@ mt76s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 		return err;
 	}
 
+	i = 0;
 	end = buf + len;
 	while (i < intr->rx.num[qid] && buf < end) {
 		int index = (q->head + i) % q->ndesc;
