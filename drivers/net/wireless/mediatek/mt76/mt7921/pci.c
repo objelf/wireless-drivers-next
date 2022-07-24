@@ -46,21 +46,26 @@ static irqreturn_t mt7921_irq_handler(int irq, void *dev_instance)
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
 
-	tasklet_schedule(&dev->irq_tasklet);
+	mt76_worker_schedule(&dev->irq_worker);
 
 	return IRQ_HANDLED;
 }
 
-static void mt7921_irq_tasklet(unsigned long data)
+static void __mt7921_irq_handler(struct mt7921_dev *dev)
 {
-	struct mt7921_dev *dev = (struct mt7921_dev *)data;
 	u32 intr, mask = 0;
+
+	if (test_bit(MT76_STATE_PM, &dev->mphy.state))
+		dev_err(dev->mt76.dev, "%s %d in PM\n", __func__, __LINE__);
 
 	mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA, 0);
 
 	intr = mt76_rr(dev, MT_WFDMA0_HOST_INT_STA);
 	intr &= dev->mt76.mmio.irqmask;
 	mt76_wr(dev, MT_WFDMA0_HOST_INT_STA, intr);
+
+	if (test_bit(MT76_STATE_PM, &dev->mphy.state))
+		dev_err(dev->mt76.dev, "%s %d in PM\n", __func__, __LINE__);
 
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
@@ -95,6 +100,21 @@ static void mt7921_irq_tasklet(unsigned long data)
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN]);
 }
 
+static void mt7921_irq_work(struct mt76_worker *w)
+{
+	struct mt7921_dev *dev = container_of(w, struct mt7921_dev,
+					      irq_worker);
+
+	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
+		dev_err(dev->mt76.dev, "%s %d in PM\n", __func__, __LINE__);
+		mt76_connac_pm_wake(&dev->mphy, &dev->pm);
+		return;
+	}
+
+	__mt7921_irq_handler(dev);
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
+}
+
 static int mt7921e_init_reset(struct mt7921_dev *dev)
 {
 	return mt7921_wpdma_reset(dev, true);
@@ -118,7 +138,7 @@ static void mt7921e_unregister_device(struct mt7921_dev *dev)
 	mt7921_wfsys_reset(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 
-	tasklet_disable(&dev->irq_tasklet);
+	mt76_worker_disable(&dev->irq_worker);
 }
 
 static u32 __mt7921_reg_addr(struct mt7921_dev *dev, u32 addr)
@@ -288,7 +308,6 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	dev->hif_ops = &mt7921_pcie_ops;
 
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
-	tasklet_init(&dev->irq_tasklet, mt7921_irq_tasklet, (unsigned long)dev);
 
 	dev->phy.dev = dev;
 	dev->phy.mt76 = &dev->mt76.phy;
@@ -318,10 +337,17 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 
+	ret = mt76_worker_setup(mt76_hw(dev), &dev->irq_worker,
+				mt7921_irq_work, "irq-work");
+	if (ret)
+		goto err_free_dev;
+
+	sched_set_fifo_low(dev->irq_worker.task);
+
 	ret = devm_request_irq(mdev->dev, pdev->irq, mt7921_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
-		goto err_free_dev;
+		goto err_free_irqworker;
 
 	ret = mt7921_dma_init(dev);
 	if (ret)
@@ -335,6 +361,8 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 
 err_free_irq:
 	devm_free_irq(&pdev->dev, pdev->irq, dev);
+err_free_irqworker:
+	mt76_worker_teardown(&dev->irq_worker);
 err_free_dev:
 	mt76_free_device(&dev->mt76);
 err_free_pci_vec:
@@ -349,6 +377,7 @@ static void mt7921_pci_remove(struct pci_dev *pdev)
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 
 	mt7921e_unregister_device(dev);
+	mt76_worker_teardown(&dev->irq_worker);
 	devm_free_irq(&pdev->dev, pdev->irq, dev);
 	mt76_free_device(&dev->mt76);
 	pci_free_irq_vectors(pdev);
@@ -399,7 +428,7 @@ static int mt7921_pci_suspend(struct device *device)
 	mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA, 0);
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
 	synchronize_irq(pdev->irq);
-	tasklet_kill(&dev->irq_tasklet);
+	mt76_worker_disable(&dev->irq_worker);
 
 	err = mt7921_mcu_fw_pmctrl(dev);
 	if (err)

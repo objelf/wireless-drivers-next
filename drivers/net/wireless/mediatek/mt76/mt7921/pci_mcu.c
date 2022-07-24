@@ -98,6 +98,8 @@ int mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev)
 	mt7921_wpdma_reinit_cond(dev);
 	clear_bit(MT76_STATE_PM, &mphy->state);
 
+	mt76_worker_schedule(&dev->irq_worker);
+
 	pm->stats.last_wake_event = jiffies;
 	pm->stats.doze_time += pm->stats.last_wake_event -
 			       pm->stats.last_doze_event;

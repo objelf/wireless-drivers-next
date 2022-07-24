@@ -197,7 +197,6 @@ struct mt7921_dev {
 
 	const struct mt76_bus_ops *bus_ops;
 	struct mt7921_phy phy;
-	struct tasklet_struct irq_tasklet;
 
 	struct work_struct reset_work;
 	bool hw_full_reset:1;
@@ -218,6 +217,8 @@ struct mt7921_dev {
 	struct work_struct ipv6_ns_work;
 	/* IPv6 addresses for WoWLAN */
 	struct sk_buff_head ipv6_ns_list;
+
+	struct mt76_worker irq_worker;
 };
 
 enum {
@@ -300,7 +301,7 @@ static inline void mt7921_irq_enable(struct mt7921_dev *dev, u32 mask)
 {
 	mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
 
-	tasklet_schedule(&dev->irq_tasklet);
+	mt76_worker_schedule(&dev->irq_worker);
 }
 
 static inline u32
