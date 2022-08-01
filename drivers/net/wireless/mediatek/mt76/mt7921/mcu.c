@@ -175,15 +175,13 @@ mt7921_mcu_connection_loss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 static void
 mt7921_mcu_bss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
-	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt76_connac_mcu_bss_event *event;
 
 	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	event = (struct mt76_connac_mcu_bss_event *)skb->data;
-	if (event->is_absent)
-		ieee80211_stop_queues(mphy->hw);
-	else
-		ieee80211_wake_queues(mphy->hw);
+
+	dev_err(dev->mt76.dev, "BSS %d is %s\n", event->bss_idx,
+			event->is_absent ? "Absent" : "Present");
 }
 
 static void
