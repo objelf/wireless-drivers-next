@@ -648,6 +648,15 @@ static void mt7921_configure_filter(struct ieee80211_hw *hw,
 	mt7921_mutex_release(dev);
 }
 
+static void mt7921_vif_ps(void *priv, u8 *mac, struct ieee80211_vif *vif)
+{
+	bool *ps = priv;
+
+	*ps |= vif->bss_conf.ps;
+
+	pr_err("++%s %d vif ps = %d ps = %d\n", __func__, __LINE__, vif->bss_conf.ps, *ps);
+}
+
 static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
@@ -676,8 +685,20 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & (BSS_CHANGED_QOS | BSS_CHANGED_BEACON_ENABLED))
 		mt7921_mcu_set_tx(dev, vif);
 
-	if (changed & BSS_CHANGED_PS)
+	if (changed & BSS_CHANGED_PS) {
+		struct mt76_connac_pm *pm = &dev->pm;
+		bool ps = false;
+
 		mt7921_mcu_uni_bss_ps(dev, vif);
+
+		ieee80211_iterate_active_interfaces(phy->mt76->hw,
+						    IEEE80211_IFACE_ITER_ACTIVE,
+						    mt7921_vif_ps, &ps);
+
+		pm->enable_user = ps;
+		pm->enable = pm->enable_user;
+		mt76_connac_pm_wake(&dev->mphy, pm);
+	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		mt7921_mcu_sta_update(dev, NULL, vif, true,
