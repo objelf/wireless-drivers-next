@@ -3046,7 +3046,10 @@ int mt76_connac2_mcu_fill_message(struct mt76_dev *dev, struct sk_buff *skb,
 	u8 seq;
 
 	/* TODO: make dynamic based on msg type */
-	dev->mcu.timeout = 20 * HZ;
+	if (is_mt7921(dev))
+		dev->mcu.timeout = 3 * HZ;
+	else
+		dev->mcu.timeout = 20 * HZ;
 
 	seq = ++dev->mcu.msg_seq & 0xf;
 	if (!seq)
