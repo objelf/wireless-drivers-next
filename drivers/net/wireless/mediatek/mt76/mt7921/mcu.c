@@ -994,6 +994,95 @@ int mt7921_mcu_set_sniffer(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 				 true);
 }
 
+int mt7921_mcu_set_sniffer_chctx(struct mt7921_dev *dev, struct ieee80211_vif *vif,
+				 struct ieee80211_chanctx_conf *ctx)
+{
+	struct cfg80211_chan_def *chandef = &ctx->def;
+	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
+	enum nl80211_band band = chandef->chan->band;
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct {
+		struct {
+			u8 band_idx;
+			u8 pad[3];
+		} __packed hdr;
+		struct sniffer_chctx_tlv {
+			__le16 tag;
+			__le16 len;
+			__le16 aid;
+			u8 band;
+			u8 bw;
+			u8 control_channel;
+			u8 sco;
+			u8 center_chan;
+			u8 center_chan2;
+			u8 drop_fcs_err;
+			u8 rsv2[3];
+		} __packed chctx;
+	} req = {
+		.hdr = {
+			.band_idx = mvif->band_idx,
+		},
+		.chctx = {
+			.tag = cpu_to_le16(1),
+			.len = cpu_to_le16(sizeof(struct sniffer_chctx_tlv)),
+			.aid = cpu_to_le16(0),
+			.control_channel = chandef->chan->hw_value,
+			.center_chan = ieee80211_frequency_to_channel(freq1),
+			.center_chan2 = ieee80211_frequency_to_channel(freq2),
+			.drop_fcs_err = true,
+			.band = band,
+			},
+	};
+
+	switch (band) {
+	case NL80211_BAND_5GHZ:
+		req.chctx.band = 2;
+		break;
+	case NL80211_BAND_6GHZ:
+		req.chctx.band = 3;
+		break;
+	case NL80211_BAND_2GHZ:
+	default:
+		req.chctx.band = 1;
+		break;
+	}
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_40:
+		req.chctx.bw = CMD_CBW_40MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		req.chctx.bw = CMD_CBW_80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		req.chctx.bw = CMD_CBW_8080MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		req.chctx.bw = CMD_CBW_160MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_5:
+		req.chctx.bw = CMD_CBW_5MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		req.chctx.bw = CMD_CBW_10MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+	default:
+		req.chctx.bw = CMD_CBW_20MHZ;
+		break;
+	}
+
+	if (req.chctx.control_channel < req.chctx.center_chan)
+		req.chctx.sco = 1; /* SCA */
+	else if (req.chctx.control_channel > req.chctx.center_chan)
+		req.chctx.sco = 3; /* SCB */
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(SNIFFER), &req, sizeof(req),
+				 true);
+}
+
 int
 mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 				  struct ieee80211_hw *hw,

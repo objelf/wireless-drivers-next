@@ -1725,7 +1725,10 @@ static void mt7921_ctx_iter(void *priv, u8 *mac,
 	if (ctx != mvif->ctx)
 		return;
 
-	mt76_connac_mcu_uni_set_chctx(mvif->phy->mt76, &mvif->mt76, ctx);
+	if (vif->type != NL80211_IFTYPE_MONITOR)
+		mt76_connac_mcu_uni_set_chctx(mvif->phy->mt76, &mvif->mt76, ctx);
+	else
+		mt7921_mcu_set_sniffer_chctx(mvif->phy->dev, vif, ctx);
 }
 
 static void
