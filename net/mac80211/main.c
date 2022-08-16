@@ -937,6 +937,14 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		return -EINVAL;
 #endif
 
+	/* check all or no channel context operations exist */
+	i = !!local->ops->add_chanctx + !!local->ops->remove_chanctx +
+	    !!local->ops->change_chanctx + !!local->ops->assign_vif_chanctx +
+	    !!local->ops->unassign_vif_chanctx;
+	if (WARN_ON(i != 0 && i != 5))
+		return -EINVAL;
+	local->use_chanctx = i == 5;
+
 	if (!local->use_chanctx) {
 		for (i = 0; i < local->hw.wiphy->n_iface_combinations; i++) {
 			const struct ieee80211_iface_combination *comb;
