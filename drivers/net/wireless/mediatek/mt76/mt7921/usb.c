@@ -218,6 +218,7 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 
 	dev = container_of(mdev, struct mt7921_dev, mt76);
 	dev->hif_ops = &hif_ops;
+	dev->ops = ops;
 
 	udev = usb_get_dev(udev);
 	usb_reset_device(udev);
