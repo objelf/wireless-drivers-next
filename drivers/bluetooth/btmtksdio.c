@@ -36,6 +36,7 @@
 #define MTKBTSDIO_AUTOSUSPEND_DELAY	1000
 
 static bool enable_autosuspend = true;
+static struct sdio_driver btmtksdio_driver;
 
 struct btmtksdio_data {
 	const char *fwname;
@@ -427,7 +428,7 @@ static int btmtksdio_recv_acl(struct hci_dev *hdev, struct sk_buff *skb)
 		 * device can no longer suspend and thus disable auto-suspend.
 		 */
 		pm_runtime_forbid(bdev->dev);
-		fallthrough;
+		return btmtk_process_coredump_pkt(hdev, skb);
 	case 0x05ff:
 	case 0x05fe:
 		/* Firmware debug logging */
@@ -1065,6 +1066,49 @@ static int btmtksdio_reset_setting(struct hci_dev *hdev)
 	return btmtksdio_mtk_reg_write(hdev, MT7921_BTSYS_RST, val, ~0);
 }
 
+static void btmtksdio_reset_work(struct work_struct *work)
+{
+	struct btmtk_reset *info = container_of(work, struct btmtk_reset, reset_work.work);
+	struct hci_dev *hdev = info->hdev;
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+	u32 status;
+	int err;
+
+	if (!bdev->reset || bdev->data->chipid != 0x7921)
+		return;
+
+	pm_runtime_get_sync(bdev->dev);
+
+	if (test_and_set_bit(BTMTKSDIO_HW_RESET_ACTIVE, &bdev->tx_state))
+		return;
+
+	sdio_claim_host(bdev->func);
+
+	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
+	skb_queue_purge(&bdev->txq);
+	cancel_work_sync(&bdev->txrx_work);
+
+	gpiod_set_value_cansleep(bdev->reset, 1);
+	msleep(100);
+	gpiod_set_value_cansleep(bdev->reset, 0);
+
+	err = readx_poll_timeout(btmtksdio_chcr_query, bdev, status,
+				 status & BT_RST_DONE, 100000, 2000000);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to reset (%d)", err);
+		goto err;
+	}
+
+	clear_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);
+err:
+	sdio_release_host(bdev->func);
+
+	pm_runtime_put_noidle(bdev->dev);
+	pm_runtime_disable(bdev->dev);
+
+	hci_reset_dev(hdev);
+}
+
 static int btmtksdio_setup(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
@@ -1109,6 +1153,10 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 			bt_dev_err(hdev, "Failed to get fw version (%d)", err);
 			return err;
 		}
+
+		btmtk_register_coredump(hdev, dev_id, btmtksdio_driver.name,
+						fw_version);
+		btmtk_init_reset_work(hdev, btmtksdio_reset_work);
 
 		snprintf(fwname, sizeof(fwname),
 			 "mediatek/BT_RAM_CODE_MT%04x_1_%x_hdr.bin",
@@ -1241,47 +1289,6 @@ static int btmtksdio_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
-static void btmtksdio_cmd_timeout(struct hci_dev *hdev)
-{
-	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
-	u32 status;
-	int err;
-
-	if (!bdev->reset || bdev->data->chipid != 0x7921)
-		return;
-
-	pm_runtime_get_sync(bdev->dev);
-
-	if (test_and_set_bit(BTMTKSDIO_HW_RESET_ACTIVE, &bdev->tx_state))
-		return;
-
-	sdio_claim_host(bdev->func);
-
-	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
-	skb_queue_purge(&bdev->txq);
-	cancel_work_sync(&bdev->txrx_work);
-
-	gpiod_set_value_cansleep(bdev->reset, 1);
-	msleep(100);
-	gpiod_set_value_cansleep(bdev->reset, 0);
-
-	err = readx_poll_timeout(btmtksdio_chcr_query, bdev, status,
-				 status & BT_RST_DONE, 100000, 2000000);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to reset (%d)", err);
-		goto err;
-	}
-
-	clear_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);
-err:
-	sdio_release_host(bdev->func);
-
-	pm_runtime_put_noidle(bdev->dev);
-	pm_runtime_disable(bdev->dev);
-
-	hci_reset_dev(hdev);
-}
-
 static bool btmtksdio_sdio_inband_wakeup(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
@@ -1350,7 +1357,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 
 	hdev->open     = btmtksdio_open;
 	hdev->close    = btmtksdio_close;
-	hdev->cmd_timeout = btmtksdio_cmd_timeout;
+	hdev->cmd_timeout = btmtk_cmd_timeout;
 	hdev->flush    = btmtksdio_flush;
 	hdev->setup    = btmtksdio_setup;
 	hdev->shutdown = btmtksdio_shutdown;
