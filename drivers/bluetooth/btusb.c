@@ -2364,6 +2364,8 @@ static int btusb_send_frame_intel(struct hci_dev *hdev, struct sk_buff *skb)
 #define MTK_BT_RESET_WAIT_MS	100
 #define MTK_BT_RESET_NUM_TRIES	10
 
+static void btusb_mtk_reset_work(struct work_struct *work);
+
 static void btusb_mtk_wmt_recv(struct urb *urb)
 {
 	struct hci_dev *hdev = urb->context;
@@ -2768,6 +2770,10 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 			return err;
 		}
 	}
+	/* Used for support devcroedump */
+	btmtk_register_coredump(hdev, dev_id, btusb_driver.name, fw_version);
+	/* init for controller reset */
+	btmtk_init_reset_work(hdev, btusb_mtk_reset_work);
 
 	switch (dev_id) {
 	case 0x7663:
@@ -2918,8 +2924,10 @@ static int btusb_mtk_shutdown(struct hci_dev *hdev)
 	return 0;
 }
 
-static void btusb_mtk_cmd_timeout(struct hci_dev *hdev)
+static void btusb_mtk_reset_work(struct work_struct *work)
 {
+	struct btmtk_reset *info = container_of(work, struct btmtk_reset, work);
+	struct hci_dev *hdev = info->hdev;
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	u32 val;
 	int err, retry = 0;
@@ -2986,7 +2994,7 @@ static int btusb_recv_acl_mtk(struct hci_dev *hdev, struct sk_buff *skb)
 		 * suspend and thus disable auto-suspend.
 		 */
 		usb_disable_autosuspend(data->udev);
-		fallthrough;
+		return btmtk_process_coredump_pkt(hdev, skb);
 	case 0x05ff:		/* Firmware debug logging 1 */
 	case 0x05fe:		/* Firmware debug logging 2 */
 		return hci_recv_diag(hdev, skb);
@@ -3901,7 +3909,7 @@ static int btusb_probe(struct usb_interface *intf,
 		hdev->setup = btusb_mtk_setup;
 		hdev->shutdown = btusb_mtk_shutdown;
 		hdev->manufacturer = 70;
-		hdev->cmd_timeout = btusb_mtk_cmd_timeout;
+		hdev->cmd_timeout = btmtk_cmd_timeout;
 		hdev->set_bdaddr = btmtk_set_bdaddr;
 		set_bit(HCI_QUIRK_BROKEN_ENHANCED_SETUP_SYNC_CONN, &hdev->quirks);
 		set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);

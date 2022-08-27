@@ -12,6 +12,9 @@
 
 #define VERSION "0.1"
 
+static struct btmtk_dump mtk_coredump_info;
+static struct btmtk_reset mtk_reset_worker;
+
 /* It is for mt79xx download rom patch*/
 #define MTK_FW_ROM_PATCH_HEADER_SIZE	32
 #define MTK_FW_ROM_PATCH_GD_SIZE	64
@@ -52,6 +55,114 @@ struct btmtk_section_map {
 		} bin_info_spec;
 	};
 } __packed;
+
+static void btmtk_coredump(struct hci_dev *hdev)
+{
+	int err;
+
+	err = __hci_cmd_send(hdev, 0xfd5b, 0, NULL);
+	if ( err < 0 )
+		bt_dev_err(hdev, "Coredump failed (%d)", err);
+}
+
+static int btmtk_dmp_hdr(struct hci_dev *hdev, char *buf, size_t size)
+{
+	char *ptr = buf;
+	size_t rem = size;
+	size_t read = 0;
+
+	read = snprintf(ptr, rem, "Controller Name: 0x%X\n", mtk_coredump_info.dev_id);
+	rem -= read;
+	ptr += read;
+
+	read = snprintf(ptr, rem, "Firmware Version: 0x%X\n", mtk_coredump_info.fw_version);
+	rem -= read;
+	ptr += read;
+
+	read = snprintf(ptr, rem, "Driver: %s\n", mtk_coredump_info.driver_name);
+	rem -= read;
+	ptr += read;
+
+	read = snprintf(ptr, rem, "Vendor: Mediatek\n");
+	rem -= read;
+	ptr += read;
+
+	return size - rem;
+}
+
+void btmtk_init_reset_work(struct hci_dev *hdev, reset_worker_func_t mtk_reset_work)
+{
+	mtk_reset_worker.hdev = hdev;
+	INIT_WORK(&mtk_reset_worker.work, mtk_reset_work);
+}
+EXPORT_SYMBOL_GPL(btmtk_init_reset_work);
+
+void btmtk_register_coredump(struct hci_dev *hdev, u32 dev_id,
+			    const char *name, u32 fw_version)
+{
+	/* Used for mt79xx devcroedump */
+	memset(&mtk_coredump_info.flag, 0, sizeof(mtk_coredump_info.flag));
+	mtk_coredump_info.hdev = hdev;
+	mtk_coredump_info.dev_id = dev_id;
+	mtk_coredump_info.fw_version = fw_version;
+
+	strncpy(mtk_coredump_info.driver_name, name, MTK_DRIVER_NAME_LEN - 1);
+	hci_devcoredump_register(hdev, btmtk_coredump, btmtk_dmp_hdr, NULL);
+}
+EXPORT_SYMBOL_GPL(btmtk_register_coredump);
+
+int btmtk_process_coredump_pkt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct sk_buff *skb_dev_coredump;
+
+	/* if the disable bit is set, return directly */
+	if (test_bit(BTMTK_DUMP_DISABLE, &mtk_coredump_info.flag)) {
+		goto done;
+	}
+	/* Clone skb for dev coedump */
+	skb_dev_coredump = skb_clone(skb, GFP_ATOMIC);
+	if (!skb_dev_coredump) {
+		bt_dev_err(hdev, "Failed to generate skb_mtk_debug");
+		goto done;
+	}
+
+	if (!test_and_set_bit(BTMTK_DUMP_ACTIVE, &mtk_coredump_info.flag)) {
+		bt_dev_info(hdev, "FW dump begin");
+		/* Generate devcoredump from exception */
+		if (!hci_devcoredump_init(hdev, skb_dev_coredump->len)) {
+				hci_devcoredump_append(hdev, skb_dev_coredump);
+				clear_bit(BTMTK_DUMP_DISABLE, &mtk_coredump_info.flag);
+		} else {
+			bt_dev_err(hdev, "Failed to generate devcoredump");
+			/* If init devcoredump fail, mark this feature disable this time */
+			set_bit(BTMTK_DUMP_DISABLE, &mtk_coredump_info.flag);
+			kfree_skb(skb_dev_coredump);
+		}
+		goto done;
+	}
+
+	hci_devcoredump_append(hdev, skb_dev_coredump);
+		/* When we receive last fw coredump pkt,the dump buf end of 'coredump end'
+		 * After coredump finish, driver should reset the controller.
+		 */
+	if (skb->len > 12 &&
+		!strncmp((char*)(&skb->data[skb->len -13]), MTK_DUMP_END, 12)) {
+		bt_dev_info(hdev, "FW dump end");
+		hci_devcoredump_complete(hdev);
+		/* Trigger controller reset after coredump finish */
+		schedule_work(&mtk_reset_worker.work);
+	}
+
+done:
+	return hci_recv_diag(hdev, skb);
+}
+EXPORT_SYMBOL_GPL(btmtk_process_coredump_pkt);
+
+void btmtk_cmd_timeout(struct hci_dev *hdev)
+{
+	schedule_work(&mtk_reset_worker.work);
+}
+EXPORT_SYMBOL_GPL(btmtk_cmd_timeout);
 
 int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 			      wmt_cmd_sync_func_t wmt_cmd_sync)

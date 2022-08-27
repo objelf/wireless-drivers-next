@@ -21,6 +21,14 @@
 #define MT7921_DLSTATUS 0x7c053c10
 #define BT_DL_STATE BIT(1)
 
+#define MTK_DRIVER_NAME_LEN 16
+#define MTK_DUMP_END "coredump end"
+
+enum {
+	BTMTK_DUMP_DISABLE,
+	BTMTK_DUMP_ACTIVE,
+};
+
 enum {
 	BTMTK_WMT_PATCH_DWNLD = 0x1,
 	BTMTK_WMT_TEST = 0x2,
@@ -41,6 +49,19 @@ enum {
 	BTMTK_WMT_ON_DONE,
 	BTMTK_WMT_ON_PROGRESS,
 };
+
+struct btmtk_dump {
+	struct hci_dev *hdev;
+	char driver_name[MTK_DRIVER_NAME_LEN];
+	u32 dev_id;
+	u32 fw_version;
+	unsigned long flag;
+} __packed;
+
+struct btmtk_reset {
+	struct hci_dev *hdev;
+	struct work_struct work;
+} __packed;
 
 struct btmtk_wmt_hdr {
 	u8	dir;
@@ -122,7 +143,19 @@ struct btmtk_hci_wmt_params {
 typedef int (*wmt_cmd_sync_func_t)(struct hci_dev *,
 				   struct btmtk_hci_wmt_params *);
 
+typedef void (*reset_worker_func_t)(struct work_struct *work);
+
 #if IS_ENABLED(CONFIG_BT_MTK)
+
+int btmtk_process_coredump_pkt(struct hci_dev *hdev, struct sk_buff *skb);
+
+void btmtk_cmd_timeout(struct hci_dev *hdev);
+
+void btmtk_register_coredump(struct hci_dev *hdev, u32 dev_id,
+			    const char *name, u32 fw_version);
+
+void btmtk_init_reset_work(struct hci_dev *hdev,
+			   reset_worker_func_t mtk_reset_work);
 
 int btmtk_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 
@@ -132,6 +165,27 @@ int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
 			 wmt_cmd_sync_func_t wmt_cmd_sync);
 #else
+
+static int btmtk_process_coredump_pkt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	return -EOPNOTSUPP;
+}
+static void btmtk_cmd_timeout(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
+
+static void btmtk_register_coredump(struct hci_dev *hdev, u32 dev_id,
+				   const char *name, u32 fw_version)
+{
+	return -EOPNOTSUPP;
+}
+
+static void btmtk_init_reset_work(struct hci_dev *hdev,
+				  reset_worker_func_t mtk_reset_work)
+{
+	return -EOPNOTSUPP;
+}
 
 static inline int btmtk_set_bdaddr(struct hci_dev *hdev,
 				   const bdaddr_t *bdaddr)
