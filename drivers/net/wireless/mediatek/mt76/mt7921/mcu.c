@@ -606,12 +606,85 @@ out:
 }
 
 static int
+mt7921_get_firmware_manifest(struct mt7921_dev *dev, const u8 *data)
+{
+	struct mt7921_realease_info {
+		__le16 len;
+		u8 pad_len;
+		u8 tag;
+	} __packed *rel_info;
+
+	const u8 *end;
+
+	print_hex_dump(KERN_INFO, "prefix", DUMP_PREFIX_NONE, 32, 1,
+			       data, 16, true);
+	data += 16;
+
+	rel_info = (struct mt7921_realease_info *) data;
+	
+	pr_err("rel tag = %d, rel len = %d\n", rel_info->tag, le16_to_cpu(rel_info->len));
+
+	print_hex_dump(KERN_INFO, "all", DUMP_PREFIX_NONE, 32, 1,
+			       data, le16_to_cpu(rel_info->len), true);
+
+	data += sizeof(*rel_info);
+	end = data + le16_to_cpu(rel_info->len);
+
+	pr_err("++data = %x end = %x\n", data, end);
+	while (data < end) {
+
+		int len;
+		static int count = 0;
+
+		pr_err("data = %x end = %x\n", data, end);
+	
+		rel_info = (struct mt7921_realease_info *) data;
+
+		len = le16_to_cpu(rel_info->len) + rel_info->pad_len;
+
+		pr_err("sub rel tag = %d, rel len = %d\n", rel_info->tag, len);
+
+#define MT7921_MANFIFEST 1
+#define MT7921_FEATURE_BITS 4
+
+		data += sizeof(*rel_info);
+
+		if (rel->tag == MT7921_FEATURE_BITS) {
+			struct mt7921_features_bit {
+				u8 segment;
+				u8 data;
+				u8 rsv[14];
+			} __packed *features;
+
+			features = data;
+		
+			pr_err("ce fw = %d, cnm support = %d\n", !!(feature->segment & BIT(2)), !!(features->data & BIT(7)))
+		}
+
+		print_hex_dump(KERN_INFO, "tag content", DUMP_PREFIX_NONE, 32, 1,
+			       data, len, true);
+
+		data += len;
+
+		if (count++ > 10)
+			break;
+	}
+
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 32, 1,
+			       data, 16, true);
+	data += 16;
+
+	return 0;
+}
+
+static int
 mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
 			     const struct mt7921_fw_trailer *hdr,
 			     const u8 *data, bool is_wa)
 {
 	int i, offset = 0, max_len;
 	u32 override = 0, option = 0;
+	int len2;
 
 	max_len = mt76_is_sdio(&dev->mt76) ? 2048 : 4096;
 
@@ -645,7 +718,26 @@ mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
 		}
 
 		offset += len;
+pr_err("%s %d addr = 0x%x len = %d\n", __func__, __LINE__, offset, len);
 	}
+
+#if 0
+	offset = offset;
+
+	len2 = (u8 *)((u8 *)hdr - data + 4) - offset;
+
+pr_err("len2 = %d\n", len2);
+
+	if (len2 > 1024)
+		len2 = 1024;
+
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 32, 1,
+			       data + offset, len2, true);
+
+pr_err("%s %d trailer = 0x%x\n", __func__, __LINE__, (u8 *)hdr - data + 4);
+#endif
+
+	mt7921_get_firmware_manifest(dev, data + offset);
 
 	if (override)
 		option |= FW_START_OVERRIDE;
