@@ -649,16 +649,16 @@ mt7921_get_firmware_manifest(struct mt7921_dev *dev, const u8 *data)
 
 		data += sizeof(*rel_info);
 
-		if (rel->tag == MT7921_FEATURE_BITS) {
+		if (rel_info->tag == MT7921_FEATURE_BITS) {
 			struct mt7921_features_bit {
 				u8 segment;
 				u8 data;
 				u8 rsv[14];
 			} __packed *features;
 
-			features = data;
+			features = (struct mt7921_features_bit *) data;
 		
-			pr_err("ce fw = %d, cnm support = %d\n", !!(feature->segment & BIT(2)), !!(features->data & BIT(7)))
+			pr_err("ce fw = %d, cnm support = %d\n", !!(features->segment & BIT(2)), !!(features->data & BIT(7)));
 		}
 
 		print_hex_dump(KERN_INFO, "tag content", DUMP_PREFIX_NONE, 32, 1,
