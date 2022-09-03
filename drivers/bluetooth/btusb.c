@@ -2712,6 +2712,7 @@ static void btusb_mtk_reset_work(struct work_struct *work)
 		return;
 	}
 
+	pr_err("%s %d\n", __func__, __LINE__);
 	err = usb_autopm_get_interface(data->intf);
 	if (err < 0)
 		return;
@@ -2751,6 +2752,8 @@ static void btusb_mtk_reset_work(struct work_struct *work)
 	usb_queue_reset_device(data->intf);
 
 	clear_bit(BTUSB_HW_RESET_ACTIVE, &data->flags);
+
+	pr_err("%s %d\n", __func__, __LINE__);
 }
 
 static int btusb_mtk_setup(struct hci_dev *hdev)

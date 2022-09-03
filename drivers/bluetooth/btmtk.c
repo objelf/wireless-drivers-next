@@ -291,8 +291,10 @@ EXPORT_SYMBOL_GPL(btmtk_init_reset_work);
 
 void btmtk_reset_sync(struct hci_dev *hdev)
 {
+	pr_err("%s %d\n", __func__, __LINE__);
 	schedule_work(&reset_work.work);
 	flush_work(&reset_work.work);
+	pr_err("%s %d\n", __func__, __LINE__);
 }
 EXPORT_SYMBOL_GPL(btmtk_reset_sync);
 
