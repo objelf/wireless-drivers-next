@@ -976,7 +976,7 @@ mt7915_rf_regval_get(void *data, u64 *val)
 	if (ret)
 		return ret;
 
-	*val = regval;
+	*val = le32_to_cpu(regval);
 
 	return 0;
 }
