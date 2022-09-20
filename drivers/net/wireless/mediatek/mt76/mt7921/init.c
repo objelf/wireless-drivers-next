@@ -101,6 +101,8 @@ out:
 		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 	}
 
+	dev_err(dev->mt76.dev, "fw_can_roc = %d\n", fw_can_roc);
+
 	return 0;
 }
 
