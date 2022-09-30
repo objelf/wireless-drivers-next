@@ -279,7 +279,9 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	if (mt7921_disable_aspm)
 		mt76_pci_disable_aspm(pdev);
 
-	ops = devm_kmemdup(&pdev->dev, &mt7921_ops, sizeof(mt7921_ops),
+	mt7921_load_fw_cap(&pdev->dev, MT7921_FIRMWARE_WM);
+
+	ops = devm_kmemdup(&pdev->dev, &mt7921_ops_chanctx, sizeof(mt7921_ops),
 			   GFP_KERNEL);
 	if (!ops) {
 		ret = -ENOMEM;

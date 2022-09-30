@@ -344,6 +344,7 @@ mt7921_hw_dev(struct ieee80211_hw *hw)
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
 extern const struct ieee80211_ops mt7921_ops;
+extern const struct ieee80211_ops mt7921_ops_chanctx;
 
 u32 mt7921_reg_map(struct mt7921_dev *dev, u32 addr);
 
@@ -561,4 +562,5 @@ int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
 		       enum mt7921_roc_req type, u8 token_id);
 int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
 			 u8 token_id);
+int mt7921_load_fw_cap(struct device *dev, const char *fw_wm);
 #endif

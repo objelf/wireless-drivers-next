@@ -2,6 +2,7 @@
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/etherdevice.h>
+#include <linux/firmware.h>
 #include "mt7921.h"
 #include "mac.h"
 #include "mcu.h"
@@ -191,6 +192,120 @@ mt7921_mac_init_band(struct mt7921_dev *dev, u8 band)
 	/* disable rx rate report by default due to hw issues */
 	mt76_clear(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_RXD_G5_EN);
 }
+
+
+static int
+__mt7921_load_fw_cap(const struct mt76_connac2_fw_trailer *hdr,
+		     const u8 *data)
+{
+	struct mt7921_realease_info {
+		__le16 len;
+		u8 pad_len;
+		u8 tag;
+	} __packed *rel_info;
+
+	int i, offset = 0;
+	const u8 *end;
+
+	for (i = 0; i < hdr->n_region; i++) {
+		const struct mt76_connac2_fw_region *region;
+
+		region = (const void *)((const u8 *)hdr -
+					(hdr->n_region - i) * sizeof(*region));
+		offset += le32_to_cpu(region->len);
+	}
+
+	data += offset + 16;
+
+	rel_info = (struct mt7921_realease_info *) data;
+
+	pr_err("rel tag = %d, rel len = %d\n", rel_info->tag, le16_to_cpu(rel_info->len));
+
+	print_hex_dump(KERN_INFO, "all", DUMP_PREFIX_NONE, 32, 1,
+			       data, le16_to_cpu(rel_info->len), true);
+
+	data += sizeof(*rel_info);
+	end = data + le16_to_cpu(rel_info->len);
+
+	pr_err("++data = %px end = %px\n", data, end);
+	while (data < end) {
+
+		int len;
+		static int count = 0;
+
+		pr_err("data = %px end = %px\n", data, end);
+
+		rel_info = (struct mt7921_realease_info *) data;
+
+		len = le16_to_cpu(rel_info->len) + rel_info->pad_len;
+
+		pr_err("sub rel tag = %d, rel len = %d\n", rel_info->tag, len);
+
+#define MT7921_MANFIFEST 1
+#define MT7921_FEATURE_BITS 4
+
+		data += sizeof(*rel_info);
+
+		if (rel_info->tag == MT7921_FEATURE_BITS) {
+			struct mt7921_features_bit {
+				u8 segment;
+				u8 data;
+				u8 rsv[14];
+			} __packed *features;
+
+			features = (struct mt7921_features_bit *) data;
+
+			pr_err("ce fw = %d, cnm support = %d\n", !!(features->segment & BIT(2)), !!(features->data & BIT(7)));
+		}
+
+		print_hex_dump(KERN_INFO, "tag content", DUMP_PREFIX_NONE, 32, 1,
+			       data, len, true);
+
+		data += len;
+
+		if (count++ > 10)
+			break;
+	}
+
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 32, 1,
+			       data, 16, true);
+	data += 16;
+
+	return 0;
+}
+
+int mt7921_load_fw_cap(struct device *dev, const char *fw_wm)
+{
+	const struct mt76_connac2_fw_trailer *hdr;
+	const struct firmware *fw;
+	int ret;
+
+	ret = request_firmware(&fw, fw_wm, dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
+		dev_err(dev, "Invalid firmware\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
+	dev_err(dev, "WM Firmware Version: %.10s, Build Time: %.15s\n",
+		 hdr->fw_ver, hdr->build_date);
+
+	ret = __mt7921_load_fw_cap(hdr, fw->data);
+	if (ret) {
+		dev_err(dev, "Failed to start WM firmware\n");
+		goto out;
+	}
+
+out:
+	release_firmware(fw);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt7921_load_fw_cap);
 
 int mt7921_mac_init(struct mt7921_dev *dev)
 {
