@@ -14,7 +14,7 @@
 
 static const struct usb_device_id mt7921u_device_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0e8d, 0x7961, 0xff, 0xff, 0xff),
-		.driver_data = (kernel_ulong_t) MT7921_FIRMWARE_WM },
+		.driver_info = (kernel_ulong_t) MT7921_FIRMWARE_WM },
 	{ },
 };
 
@@ -208,8 +208,8 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	u8 features;
 	int ret;
 
-	features = mt7921_check_offload_capability(&func->dev, (const char *)
-						   id->driver_data);
+	features = mt7921_check_offload_capability(&usb_intf->dev, (const char *)
+						   id->driver_info);
 	if (features & MT7921_FW_CAP_CNM)
 		ops_src = &mt7921_ops_chanctx;
 	else
