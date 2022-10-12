@@ -386,6 +386,116 @@ static void mt7921_remove_interface(struct ieee80211_hw *hw,
 	mt76_packet_id_flush(&dev->mt76, &msta->wcid);
 }
 
+static void mt7921_roc_iter(void *priv, u8 *mac,
+			    struct ieee80211_vif *vif)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_phy *phy = priv;
+
+	mt7921_mcu_abort_roc(phy, mvif, phy->roc_token_id);
+}
+
+void mt7921_roc_work(struct work_struct *work)
+{
+	struct mt7921_phy *phy;
+
+	phy = (struct mt7921_phy *)container_of(work, struct mt7921_phy,
+						roc_work);
+
+	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
+		return;
+
+	mt7921_mutex_acquire(phy->dev);
+	ieee80211_iterate_active_interfaces(phy->mt76->hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
+					    mt7921_roc_iter, phy);
+	mt7921_mutex_release(phy->dev);
+	ieee80211_remain_on_channel_expired(phy->mt76->hw);
+}
+
+void mt7921_roc_timer(struct timer_list *timer)
+{
+	struct mt7921_phy *phy = from_timer(phy, timer, roc_timer);
+
+	ieee80211_queue_work(phy->mt76->hw, &phy->roc_work);
+}
+
+static int mt7921_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif)
+{
+	int err;
+
+	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
+		return 0;
+
+	del_timer_sync(&phy->roc_timer);
+	cancel_work_sync(&phy->roc_work);
+	err = mt7921_mcu_abort_roc(phy, vif, phy->roc_token_id);
+	clear_bit(MT76_STATE_ROC, &phy->mt76->state);
+
+	return err;
+}
+
+static int mt7921_set_roc(struct mt7921_phy *phy,
+			  struct mt7921_vif *vif,
+			  struct ieee80211_channel *chan,
+			  int duration,
+			  enum mt7921_roc_req type)
+{
+	int err;
+
+	if (test_and_set_bit(MT76_STATE_ROC, &phy->mt76->state))
+		return -EBUSY;
+
+	phy->roc_grant = false;
+
+	err = mt7921_mcu_set_roc(phy, vif, chan, duration, type,
+				 ++phy->roc_token_id);
+	if (err < 0) {
+		clear_bit(MT76_STATE_ROC, &phy->mt76->state);
+		goto out;
+	}
+
+	if (!wait_event_timeout(phy->roc_wait, phy->roc_grant, HZ)) {
+		mt7921_mcu_abort_roc(phy, vif, phy->roc_token_id);
+		clear_bit(MT76_STATE_ROC, &phy->mt76->state);
+		err = -ETIMEDOUT;
+	}
+
+out:
+	return err;
+}
+
+static int mt7921_remain_on_channel(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_channel *chan,
+				    int duration,
+				    enum ieee80211_roc_type type)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	int err;
+
+	mt7921_mutex_acquire(phy->dev);
+	err = mt7921_set_roc(phy, mvif, chan, duration, MT7921_ROC_REQ_ROC);
+	mt7921_mutex_release(phy->dev);
+
+	return err;
+}
+
+static int mt7921_cancel_remain_on_channel(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	int err;
+
+	mt7921_mutex_acquire(phy->dev);
+	err = mt7921_abort_roc(phy, mvif);
+	mt7921_mutex_release(phy->dev);
+
+	return err;
+}
+
 static int mt7921_set_channel(struct mt7921_phy *phy)
 {
 	struct mt7921_dev *dev = phy->dev;
@@ -1572,6 +1682,61 @@ mt7921_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 out:
 	mt7921_mutex_release(dev);
 }
+
+const struct ieee80211_ops mt7921_ops_chanctx = {
+	.tx = mt7921_tx,
+	.start = mt7921_start,
+	.stop = mt7921_stop,
+	.add_interface = mt7921_add_interface,
+	.remove_interface = mt7921_remove_interface,
+	.config = mt7921_config,
+	.conf_tx = mt7921_conf_tx,
+	.configure_filter = mt7921_configure_filter,
+	.bss_info_changed = mt7921_bss_info_changed,
+	.start_ap = mt7921_start_ap,
+	.stop_ap = mt7921_stop_ap,
+	.sta_state = mt7921_sta_state,
+	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
+	.set_key = mt7921_set_key,
+	.sta_set_decap_offload = mt7921_sta_set_decap_offload,
+#if IS_ENABLED(CONFIG_IPV6)
+	.ipv6_addr_change = mt7921_ipv6_addr_change,
+#endif /* CONFIG_IPV6 */
+	.ampdu_action = mt7921_ampdu_action,
+	.set_rts_threshold = mt7921_set_rts_threshold,
+	.wake_tx_queue = mt76_wake_tx_queue,
+	.release_buffered_frames = mt76_release_buffered_frames,
+	.channel_switch_beacon = mt7921_channel_switch_beacon,
+	.get_txpower = mt76_get_txpower,
+	.get_stats = mt7921_get_stats,
+	.get_et_sset_count = mt7921_get_et_sset_count,
+	.get_et_strings = mt7921_get_et_strings,
+	.get_et_stats = mt7921_get_et_stats,
+	.get_tsf = mt7921_get_tsf,
+	.set_tsf = mt7921_set_tsf,
+	.get_survey = mt76_get_survey,
+	.get_antenna = mt76_get_antenna,
+	.set_antenna = mt7921_set_antenna,
+	.set_coverage_class = mt7921_set_coverage_class,
+	.hw_scan = mt7921_hw_scan,
+	.cancel_hw_scan = mt7921_cancel_hw_scan,
+	.sta_statistics = mt7921_sta_statistics,
+	.sched_scan_start = mt7921_start_sched_scan,
+	.sched_scan_stop = mt7921_stop_sched_scan,
+	CFG80211_TESTMODE_CMD(mt7921_testmode_cmd)
+	CFG80211_TESTMODE_DUMP(mt7921_testmode_dump)
+#ifdef CONFIG_PM
+	.suspend = mt7921_suspend,
+	.resume = mt7921_resume,
+	.set_wakeup = mt7921_set_wakeup,
+	.set_rekey_data = mt7921_set_rekey_data,
+#endif /* CONFIG_PM */
+	.flush = mt7921_flush,
+	.set_sar_specs = mt7921_set_sar_specs,
+	.remain_on_channel = mt7921_remain_on_channel,
+	.cancel_remain_on_channel = mt7921_cancel_remain_on_channel,
+};
+EXPORT_SYMBOL_GPL(mt7921_ops_chanctx);
 
 const struct ieee80211_ops mt7921_ops = {
 	.tx = mt7921_tx,
