@@ -13,7 +13,8 @@
 #include "mac.h"
 
 static const struct usb_device_id mt7921u_device_table[] = {
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x0e8d, 0x7961, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0e8d, 0x7961, 0xff, 0xff, 0xff),
+		.driver_info = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	{ },
 };
 
@@ -208,10 +209,18 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	struct ieee80211_hw *hw;
 	struct mt7921_dev *dev;
 	struct mt76_dev *mdev;
+	const void *ops_src;
+	u8 features;
 	int ret;
 
-	ops = devm_kmemdup(&usb_intf->dev, &mt7921_ops, sizeof(mt7921_ops),
-			   GFP_KERNEL);
+	features = mt7921_check_offload_capability(&usb_intf->dev, (const char *)
+						   id->driver_info);
+	if (features & MT7921_FW_CAP_CNM)
+		ops_src = &mt7921_ops_chanctx;
+	else
+		ops_src = &mt7921_ops;
+
+	ops = devm_kmemdup(&usb_intf->dev, ops_src, sizeof(*ops), GFP_KERNEL);
 	if (!ops)
 		return -ENOMEM;
 
@@ -222,6 +231,7 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 		return -ENOMEM;
 
 	dev = container_of(mdev, struct mt7921_dev, mt76);
+	dev->fw_features = features;
 	dev->hif_ops = &hif_ops;
 
 	udev = usb_get_dev(udev);
