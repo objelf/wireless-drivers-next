@@ -119,11 +119,6 @@ struct btmtk_hci_wmt_params {
 	u32 *status;
 };
 
-struct btmtk_reset_work {
-	struct hci_dev *hdev;
-	struct work_struct work;
-};
-
 typedef int (*wmt_cmd_sync_func_t)(struct hci_dev *,
 				   struct btmtk_hci_wmt_params *);
 
@@ -136,8 +131,6 @@ int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 
 int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
 			 wmt_cmd_sync_func_t wmt_cmd_sync);
-void btmtk_init_reset_work(struct hci_dev *hdev, work_func_t func);
-void btmtk_reset_sync(struct hci_dev *hdev);
 #else
 
 static inline int btmtk_set_bdaddr(struct hci_dev *hdev,
@@ -158,11 +151,4 @@ static int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
 	return -EOPNOTSUPP;
 }
 
-static void btmtk_init_reset_work(struct hci_dev *hdev, work_func_t func)
-{
-}
-
-static void btmtk_reset_sync(struct hci_dev *hdev)
-{
-}
 #endif
