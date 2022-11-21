@@ -53,8 +53,6 @@ struct btmtk_section_map {
 	};
 } __packed;
 
-static struct btmtk_reset_work reset_work;
-
 int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 			      wmt_cmd_sync_func_t wmt_cmd_sync)
 {
@@ -281,20 +279,6 @@ int btmtk_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(btmtk_set_bdaddr);
-
-void btmtk_init_reset_work(struct hci_dev *hdev, work_func_t func)
-{
-	reset_work.hdev = hdev;
-	INIT_WORK(&reset_work.work, func);
-}
-EXPORT_SYMBOL_GPL(btmtk_init_reset_work);
-
-void btmtk_reset_sync(struct hci_dev *hdev)
-{
-	schedule_work(&reset_work.work);
-	flush_work(&reset_work.work);
-}
-EXPORT_SYMBOL_GPL(btmtk_reset_sync);
 
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_AUTHOR("Mark Chen <mark-yw.chen@mediatek.com>");
